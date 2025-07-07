@@ -9,7 +9,6 @@ A GPU-accelerated wave animation generator using Fourier synthesis, perfect for 
 
 [![Wave Generator Demo](https://img.shields.io/badge/Demo-Live%20Preview-blue?style=for-the-badge&logo=javascript)](https://ammarillo.github.io/WaveGenV2/)
 
-
 ## ✨ Features
 
 ### 🌊 **Fourier Wave Synthesis**
@@ -120,6 +119,162 @@ Each Fourier component includes:
 - **Controls**: Height range, normalize heights
 - **Use Cases**: Vertex displacement, terrain generation
 
+## 🧮 Mathematical Foundation
+
+### Overview
+
+This wave generator implements a sophisticated multi-layer Fourier synthesis system that creates realistic ocean wave patterns through mathematical modeling of wave physics. The system goes beyond simple sine wave summation by incorporating wave sharpening, analytical derivatives, and seamless tiling mathematics.
+
+### 🌊 Core Wave Mathematics
+
+#### Fourier Wave Synthesis
+
+The fundamental approach uses Fourier analysis to decompose complex wave patterns into simpler sinusoidal components:
+
+```
+H(x,y,t) = Σᵢ Aᵢ × f(sin(φᵢ), sᵢ)
+```
+
+Where each wave component `i` has:
+- **Amplitude** (`Aᵢ`): Controls wave height
+- **Spatial Frequency** (`fᵢ`): Controls wave density/spacing
+- **Temporal Frequency** (`ωᵢ`): Controls wave speed
+- **Direction** (`d⃗ᵢ`): Controls wave propagation direction
+- **Phase Offset** (`φ₀ᵢ`): Controls wave positioning
+- **Sharpness** (`sᵢ`): Controls wave profile shape
+
+#### Phase Calculation
+
+The phase determines the wave's position in space and time:
+
+```
+φᵢ = k⃗ᵢ · uv⃗ + ωᵢt + φ₀ᵢ
+```
+
+**Components:**
+- `k⃗ᵢ = (kₓ, kᵧ)`: Wave vector determining spatial frequency and direction
+- `uv⃗`: Texture coordinates (spatial position)
+- `ωᵢt`: Temporal component for animation
+- `φ₀ᵢ`: Phase offset for wave positioning
+
+#### Wave Sharpening Transform
+
+The key innovation is the wave sharpening function that transforms smooth sine waves into realistic, sharp-crested wave profiles:
+
+```
+sharpenWave(wave, sharpness) = mix(wave, transformed_wave, sharpness)
+```
+
+**Transformation Process:**
+1. **Power Parameter**: `p = 1/(1 + sharpness × 4)`
+2. **Valley Targeting**: `y₀ = -wave`
+3. **Negative Space Shift**: `y₁ = y₀ - 1`
+4. **Power Function**: `y₂ = -(-y₁)^(1/p)`
+5. **Recentering**: `y₃ = y₂ + 1`
+6. **Normalization**: `y₄ = 2(y₃ - min)/(max - min) - 1`
+7. **Orientation Restore**: `y₅ = -y₄`
+
+This creates oscilloscope-like waveforms with:
+- Sharp, deep valleys (wave troughs)
+- Flattened, shaped peaks (wave crests)
+- Realistic wave asymmetry
+
+#### Seamless Tiling Mathematics
+
+For seamless texture tiling, wave vectors are quantized to ensure integer wave cycles:
+
+```
+kₓ = round(fᵢ × dₓ) × 2π
+kᵧ = round(fᵢ × dᵧ) × 2π
+```
+
+This guarantees that waves complete exact integer cycles across the [0,1] texture space, eliminating seams when tiling.
+
+### 🔍 Normal Map Generation
+
+#### Analytical Derivatives
+
+Normal vectors are calculated using analytical derivatives rather than finite differences for maximum precision:
+
+```
+∂H/∂x = Σᵢ Aᵢ × sharpenDerivative(cos(φᵢ), sᵢ) × kₓᵢ
+∂H/∂y = Σᵢ Aᵢ × sharpenDerivative(cos(φᵢ), sᵢ) × kᵧᵢ
+```
+
+#### Surface Normal Calculation
+
+The surface normal is computed from the gradient:
+
+```
+n⃗ = normalize((-∂H/∂x × intensity, -∂H/∂y × intensity, 1))
+```
+
+Output in normal map format: `n⃗ × 0.5 + 0.5` (maps [-1,1] to [0,1])
+
+### ⚙️ Advanced Features
+
+#### Height Normalization
+
+Optional normalization ensures full dynamic range usage:
+
+```
+H_normalized = 2 × (H - H_min)/(H_max - H_min) - 1
+```
+
+Where theoretical bounds are:
+- `H_min = -Σᵢ |Aᵢ|` (all waves in destructive interference)
+- `H_max = +Σᵢ |Aᵢ|` (all waves in constructive interference)
+
+#### Temporal Animation
+
+Smooth looping animation is achieved through:
+
+```
+t_normalized = (t mod loop_duration) / loop_duration
+```
+
+With integer temporal frequencies ensuring perfect loops.
+
+#### Gradient Normalization
+
+Optional gradient normalization for consistent normal intensity:
+
+```
+gradient_normalized = (gradient / |gradient|) × scale
+```
+
+### 🌍 Physical Interpretation
+
+The mathematical model approximates real ocean wave behavior:
+
+- **Dispersion**: Different frequency components travel at different speeds
+- **Superposition**: Multiple wave trains combine linearly
+- **Directional Spreading**: Waves propagate in various directions
+- **Nonlinear Effects**: Wave sharpening simulates wave steepening and breaking
+- **Statistical Properties**: Fourier synthesis matches observed ocean spectra
+
+### 💻 Implementation Notes
+
+#### Numerical Stability
+
+- Careful handling of division by zero in normalization
+- Clamping of output values to valid ranges
+- Robust handling of edge cases in power functions
+
+#### Performance Optimization
+
+- Analytical derivatives eliminate sampling overhead
+- Efficient loop unrolling for fixed layer counts
+- Optimized trigonometric function usage
+
+#### Precision Considerations
+
+- High-precision floating point for temporal consistency
+- Careful phase accumulation to prevent drift
+- Quantization strategies for seamless tiling
+
+This mathematical foundation enables the generation of highly realistic, animatable wave patterns suitable for real-time rendering applications while maintaining computational efficiency and visual quality.
+
 ## 📁 Preset System
 
 ### Exporting Presets
@@ -128,7 +283,6 @@ Each Fourier component includes:
 {
   "version": "1.0",
   "name": "Ocean Waves",
-  "timestamp": "2024-01-15T10:30:00.000Z",
   "settings": {
     "loopDuration": 2.0,
     "speed": 1.0,
@@ -228,4 +382,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with WebGL, vanilla JavaScript, and lots of wave mathematics! 🌊**
 
-*Perfect for game developers, VFX artists, educators, and anyone who loves the beauty of mathematical waves.* 
+*Perfect for game developers, VFX artists, educators, and anyone who loves the beauty of mathematical waves.*
