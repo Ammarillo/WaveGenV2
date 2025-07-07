@@ -163,50 +163,10 @@ Each Fourier component includes:
 - **Ocean Surfaces**: Realistic water for open-world games
 - **Lake Effects**: Calm water with gentle ripples
 - **River Systems**: Flowing water with directional waves
-- **Particle Effects**: Animated water splashes and droplets
-
-### Visual Effects
-- **Water Simulation**: Preview complex water behaviors
-- **Displacement Mapping**: Create terrain and surface detail
-- **Material Effects**: Realistic surface reflections and lighting
-
-### Education
-- **Wave Physics**: Visualize wave superposition
-- **Fourier Analysis**: Understand frequency domain concepts
-- **Animation Principles**: Study temporal wave behavior
 
 ### Digital Art
 - **Procedural Textures**: Generate unique wave patterns
-- **Background Elements**: Animated water backgrounds
 - **Material Design**: Create custom water materials
-
-## 💡 Tips for Best Results
-
-### Wave Layer Combinations
-- **Realistic Water**: Use decreasing amplitude with increasing frequency
-- **Stormy Seas**: Higher amplitudes with varied directions
-- **Calm Water**: Lower amplitudes with gentle frequencies
-
-### Direction Variety
-- **Natural Patterns**: Mix different wave directions
-- **Complex Interactions**: Combine perpendicular and diagonal waves
-- **Flow Simulation**: Use consistent direction for river effects
-
-### Sharpness Control
-- **Gentle Waves**: 0.0 - 0.3 for smooth, natural waves
-- **Sharp Peaks**: 0.4 - 0.7 for dramatic, peaked waves
-- **Extreme Shapes**: 0.8 - 1.0 for stylized, sharp waves
-
-### Export Settings
-- **Game Textures**: 512x512 or 1024x1024 resolution
-- **High Detail**: 2048x2048 for close-up textures
-- **Animation Length**: 30-60 frames for smooth loops
-- **File Size**: Balance quality with download size
-
-### Performance Optimization
-- **Layer Count**: Start with 2-4 layers, add more as needed
-- **Real-time Preview**: Lower resolution for smooth interaction
-- **Export Quality**: Higher resolution only for final output
 
 ## 🔧 Technical Details
 
