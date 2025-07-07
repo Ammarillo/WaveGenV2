@@ -132,7 +132,11 @@ class FourierWaveGenerator {
             speedInput.value = this.speed;
             if (speedValue) speedValue.textContent = this.speed.toFixed(1);
         }
-        if (layerCountInput) layerCountInput.value = this.layerCount;
+        if (layerCountInput) {
+            layerCountInput.value = this.layerCount;
+            const layerCountValue = document.getElementById('layerCountValue');
+            if (layerCountValue) layerCountValue.textContent = this.layerCount.toString();
+        }
         if (outputModeSelect) outputModeSelect.value = this.outputMode;
         if (waveScaleInput) {
             waveScaleInput.value = this.waveScale;
@@ -532,6 +536,8 @@ class FourierWaveGenerator {
         if (layerCountEl) {
             layerCountEl.addEventListener('input', (e) => {
                 this.layerCount = parseInt(e.target.value);
+                const layerCountValueEl = document.getElementById('layerCountValue');
+                if (layerCountValueEl) layerCountValueEl.textContent = this.layerCount.toString();
                 this.updateWaveLayerControls();
                 this.saveSettings();
             });
@@ -1321,7 +1327,7 @@ class FourierWaveGenerator {
             
             // Add all images to the zip
             for (let i = 0; i < images.length; i++) {
-                const fileName = `wave_${modePrefix}_${String(i).padStart(4, '0')}.png`;
+                const fileName = `wave_${modePrefix}_${String(i).padStart(4, '0')}_${Date.now()}.png`;
                 zip.file(fileName, images[i]);
             }
             
@@ -1332,7 +1338,7 @@ class FourierWaveGenerator {
             const url = URL.createObjectURL(zipBlob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `fourier_waves_${modePrefix}_${images.length}frames.zip`;
+            a.download = `fourier_waves_${modePrefix}_${images.length}frames_${Date.now()}.zip`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -1370,7 +1376,7 @@ class FourierWaveGenerator {
         const url = URL.createObjectURL(dataBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `fourier_wave_preset_${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `fourier_wave_preset_${Date.now()}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
