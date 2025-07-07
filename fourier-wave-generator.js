@@ -19,7 +19,6 @@ class FourierWaveGenerator {
         this.normalIntensity = 0.6;
         this.heightRange = 1.0;
         this.outputMode = 'normal'; // 'normal' or 'height'
-        this.normalizeNormals = false;
         this.normalizeHeights = false;
         this.layerCount = 4;
         this.waveLayers = [];
@@ -55,7 +54,6 @@ class FourierWaveGenerator {
             outputMode: this.outputMode,
             waveScale: this.waveScale,
             normalIntensity: this.normalIntensity,
-            normalizeNormals: this.normalizeNormals,
             heightRange: this.heightRange,
             normalizeHeights: this.normalizeHeights,
             waveLayers: this.waveLayers.slice(0, this.layerCount),
@@ -86,7 +84,6 @@ class FourierWaveGenerator {
                 this.outputMode = settings.outputMode || 'normal';
                 this.waveScale = settings.waveScale || 0.2;
                 this.normalIntensity = settings.normalIntensity || 0.6;
-                this.normalizeNormals = settings.normalizeNormals || false;
                 this.heightRange = settings.heightRange || 1.0;
                 this.normalizeHeights = settings.normalizeHeights || false;
                 
@@ -120,7 +117,6 @@ class FourierWaveGenerator {
         const waveScaleValue = document.getElementById('waveScaleValue');
         const normalIntensityInput = document.getElementById('normalIntensity');
         const normalIntensityValue = document.getElementById('normalIntensityValue');
-        const normalizeNormalsInput = document.getElementById('normalizeNormals');
         const heightRangeInput = document.getElementById('heightRange');
         const heightRangeValue = document.getElementById('heightRangeValue');
         const normalizeHeightsInput = document.getElementById('normalizeHeights');
@@ -146,7 +142,6 @@ class FourierWaveGenerator {
             normalIntensityInput.value = this.normalIntensity;
             if (normalIntensityValue) normalIntensityValue.textContent = this.normalIntensity.toFixed(1);
         }
-        if (normalizeNormalsInput) normalizeNormalsInput.checked = this.normalizeNormals;
         if (heightRangeInput) {
             heightRangeInput.value = this.heightRange;
             if (heightRangeValue) heightRangeValue.textContent = this.heightRange.toFixed(1);
@@ -208,7 +203,6 @@ class FourierWaveGenerator {
             uniform float u_normalIntensity;
             uniform float u_heightRange;
             uniform int u_outputMode; // 0 = normal, 1 = height
-            uniform bool u_normalizeNormals;
             uniform bool u_normalizeHeights;
             uniform int u_layerCount;
             
@@ -352,16 +346,6 @@ class FourierWaveGenerator {
                 dhdx *= u_waveScale;
                 dhdy *= u_waveScale;
                 
-                // Optional gradient normalization
-                if (u_normalizeNormals) {
-                    float gradientMagnitude = sqrt(dhdx * dhdx + dhdy * dhdy);
-                    if (gradientMagnitude > 0.001) {
-                        float normalizedScale = 0.5; // Reduced scale for smoother normals
-                        dhdx = (dhdx / gradientMagnitude) * normalizedScale;
-                        dhdy = (dhdy / gradientMagnitude) * normalizedScale;
-                    }
-                }
-                
                 // Normal vector
                 vec3 normal = normalize(vec3(-dhdx * u_normalIntensity, -dhdy * u_normalIntensity, 1.0));
                 
@@ -445,7 +429,6 @@ class FourierWaveGenerator {
             normalIntensity: this.gl.getUniformLocation(this.program, 'u_normalIntensity'),
             heightRange: this.gl.getUniformLocation(this.program, 'u_heightRange'),
             outputMode: this.gl.getUniformLocation(this.program, 'u_outputMode'),
-            normalizeNormals: this.gl.getUniformLocation(this.program, 'u_normalizeNormals'),
             normalizeHeights: this.gl.getUniformLocation(this.program, 'u_normalizeHeights'),
             layerCount: this.gl.getUniformLocation(this.program, 'u_layerCount'),
             amplitudes: this.gl.getUniformLocation(this.program, 'u_amplitudes'),
@@ -574,14 +557,6 @@ class FourierWaveGenerator {
             });
         }
         
-        const normalizeNormalsEl = document.getElementById('normalizeNormals');
-        if (normalizeNormalsEl) {
-            normalizeNormalsEl.addEventListener('change', (e) => {
-                this.normalizeNormals = e.target.checked;
-                this.saveSettings();
-            });
-        }
-        
         const heightRangeEl = document.getElementById('heightRange');
         if (heightRangeEl) {
             heightRangeEl.addEventListener('input', (e) => {
@@ -651,18 +626,15 @@ class FourierWaveGenerator {
     
     updateModeUI() {
         const normalIntensityRow = document.getElementById('normalIntensityRow');
-        const normalizeNormalsRow = document.getElementById('normalizeNormalsRow');
         const heightRangeRow = document.getElementById('heightRangeRow');
         const normalizeHeightsRow = document.getElementById('normalizeHeightsRow');
         
         if (this.outputMode === 'normal') {
             normalIntensityRow.style.display = 'flex';
-            normalizeNormalsRow.style.display = 'flex';
             heightRangeRow.style.display = 'none';
             normalizeHeightsRow.style.display = 'none';
         } else {
             normalIntensityRow.style.display = 'none';
-            normalizeNormalsRow.style.display = 'none';
             heightRangeRow.style.display = 'flex';
             normalizeHeightsRow.style.display = 'flex';
         }
@@ -864,7 +836,6 @@ class FourierWaveGenerator {
         this.gl.uniform1f(this.uniforms.normalIntensity, this.normalIntensity);
         this.gl.uniform1f(this.uniforms.heightRange, this.heightRange);
         this.gl.uniform1i(this.uniforms.outputMode, this.outputMode === 'normal' ? 0 : 1);
-        this.gl.uniform1i(this.uniforms.normalizeNormals, this.normalizeNormals ? 1 : 0);
         this.gl.uniform1i(this.uniforms.normalizeHeights, this.normalizeHeights ? 1 : 0);
         this.gl.uniform1i(this.uniforms.layerCount, this.layerCount);
         
@@ -1017,7 +988,6 @@ class FourierWaveGenerator {
             uniform float u_normalIntensity;
             uniform float u_heightRange;
             uniform int u_outputMode;
-            uniform bool u_normalizeNormals;
             uniform bool u_normalizeHeights;
             uniform int u_layerCount;
             uniform float u_amplitudes[8];
@@ -1157,17 +1127,10 @@ class FourierWaveGenerator {
                 dhdx *= u_waveScale;
                 dhdy *= u_waveScale;
                 
-                // Optional gradient normalization
-                if (u_normalizeNormals) {
-                    float gradientMagnitude = sqrt(dhdx * dhdx + dhdy * dhdy);
-                    if (gradientMagnitude > 0.001) {
-                        float normalizedScale = 0.5; // Reduced scale for smoother normals
-                        dhdx = (dhdx / gradientMagnitude) * normalizedScale;
-                        dhdy = (dhdy / gradientMagnitude) * normalizedScale;
-                    }
-                }
-                
+                // Normal vector
                 vec3 normal = normalize(vec3(-dhdx * u_normalIntensity, -dhdy * u_normalIntensity, 1.0));
+                
+                // Convert to normal map format [0,1] range
                 return normal * 0.5 + 0.5;
             }
             
@@ -1243,7 +1206,6 @@ class FourierWaveGenerator {
             normalIntensity: gl.getUniformLocation(this.exportProgram, 'u_normalIntensity'),
             heightRange: gl.getUniformLocation(this.exportProgram, 'u_heightRange'),
             outputMode: gl.getUniformLocation(this.exportProgram, 'u_outputMode'),
-            normalizeNormals: gl.getUniformLocation(this.exportProgram, 'u_normalizeNormals'),
             normalizeHeights: gl.getUniformLocation(this.exportProgram, 'u_normalizeHeights'),
             layerCount: gl.getUniformLocation(this.exportProgram, 'u_layerCount'),
             amplitudes: gl.getUniformLocation(this.exportProgram, 'u_amplitudes'),
@@ -1289,7 +1251,6 @@ class FourierWaveGenerator {
         gl.uniform1f(this.exportUniforms.normalIntensity, this.normalIntensity);
         gl.uniform1f(this.exportUniforms.heightRange, this.heightRange);
         gl.uniform1i(this.exportUniforms.outputMode, this.outputMode === 'normal' ? 0 : 1);
-        gl.uniform1i(this.exportUniforms.normalizeNormals, this.normalizeNormals ? 1 : 0);
         gl.uniform1i(this.exportUniforms.normalizeHeights, this.normalizeHeights ? 1 : 0);
         gl.uniform1i(this.exportUniforms.layerCount, this.layerCount);
         
@@ -1363,7 +1324,6 @@ class FourierWaveGenerator {
                 outputMode: this.outputMode,
                 waveScale: this.waveScale,
                 normalIntensity: this.normalIntensity,
-                normalizeNormals: this.normalizeNormals,
                 heightRange: this.heightRange,
                 normalizeHeights: this.normalizeHeights,
                 waveLayers: this.waveLayers.slice(0, this.layerCount) // Only include active layers
@@ -1406,7 +1366,6 @@ class FourierWaveGenerator {
             this.outputMode = settings.outputMode || 'normal';
             this.waveScale = settings.waveScale || 1.0;
             this.normalIntensity = settings.normalIntensity || 1.0;
-            this.normalizeNormals = settings.normalizeNormals || false;
             this.heightRange = settings.heightRange || 1.0;
             this.normalizeHeights = settings.normalizeHeights || false;
             
@@ -1435,7 +1394,6 @@ class FourierWaveGenerator {
             document.getElementById('waveScaleValue').textContent = this.waveScale.toFixed(1);
             document.getElementById('normalIntensity').value = this.normalIntensity;
             document.getElementById('normalIntensityValue').textContent = this.normalIntensity.toFixed(1);
-            document.getElementById('normalizeNormals').checked = this.normalizeNormals;
             document.getElementById('heightRange').value = this.heightRange;
             document.getElementById('heightRangeValue').textContent = this.heightRange.toFixed(1);
             document.getElementById('normalizeHeights').checked = this.normalizeHeights;
