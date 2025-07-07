@@ -499,7 +499,6 @@ class FourierWaveGenerator {
             this.randomizeAllLayers();
             this.updateWaveLayerControls();
             this.saveSettings();
-            showNotification('All layers randomized!');
         };
 
         if (randomizeAllBtnEl) {
