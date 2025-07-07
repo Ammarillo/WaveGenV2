@@ -33,7 +33,7 @@ A GPU-accelerated wave animation generator using Fourier synthesis, perfect for 
 
 ### 📦 **Advanced Export System**
 - Export animation sequences as ZIP files
-- Configurable resolution (256x256 to 2048x2048)
+- Configurable resolution (256x256 to 4096x4096)
 - Configurable frame count (8-120 frames)
 - Organized file naming with mode prefixes
 
