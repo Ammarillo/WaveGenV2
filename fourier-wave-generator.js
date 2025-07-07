@@ -10,13 +10,13 @@ class FourierWaveGenerator {
         // Animation state
         this.startTime = performance.now();
         this.currentTime = 0;
-        this.loopDuration = 2.0;
+        this.loopDuration = 10.0;
         this.speed = 1.0;
         this.isPlaying = true;
         
         // Wave parameters
-        this.waveScale = 1.0;
-        this.normalIntensity = 1.0;
+        this.waveScale = 0.2;
+        this.normalIntensity = 0.6;
         this.heightRange = 1.0;
         this.outputMode = 'normal'; // 'normal' or 'height'
         this.normalizeNormals = false;
@@ -80,12 +80,12 @@ class FourierWaveGenerator {
                 const settings = JSON.parse(saved);
                 
                 // Apply settings with validation
-                this.loopDuration = settings.loopDuration || 2.0;
+                this.loopDuration = settings.loopDuration || 10.0;
                 this.speed = settings.speed || 1.0;
                 this.layerCount = settings.layerCount || 4;
                 this.outputMode = settings.outputMode || 'normal';
-                this.waveScale = settings.waveScale || 1.0;
-                this.normalIntensity = settings.normalIntensity || 1.0;
+                this.waveScale = settings.waveScale || 0.2;
+                this.normalIntensity = settings.normalIntensity || 0.6;
                 this.normalizeNormals = settings.normalizeNormals || false;
                 this.heightRange = settings.heightRange || 1.0;
                 this.normalizeHeights = settings.normalizeHeights || false;
@@ -491,6 +491,25 @@ class FourierWaveGenerator {
         // Restore UI controls from saved settings
         this.restoreUIControls();
         
+        // Randomize buttons (both mobile and desktop)
+        const randomizeAllBtnEl = document.getElementById('randomizeAllBtn');
+        const randomizeAllBtnMobileEl = document.getElementById('randomizeAllBtnMobile');
+        
+        const handleRandomize = () => {
+            this.randomizeAllLayers();
+            this.updateWaveLayerControls();
+            this.saveSettings();
+            showNotification('All layers randomized!');
+        };
+
+        if (randomizeAllBtnEl) {
+            randomizeAllBtnEl.addEventListener('click', handleRandomize);
+        }
+        
+        if (randomizeAllBtnMobileEl) {
+            randomizeAllBtnMobileEl.addEventListener('click', handleRandomize);
+        }
+        
         // Animation controls
         const loopDurationEl = document.getElementById('loopDuration');
         if (loopDurationEl) {
@@ -599,15 +618,6 @@ class FourierWaveGenerator {
             });
         }
         
-        // Randomize controls
-        const randomizeAllBtnEl = document.getElementById('randomizeAllBtn');
-        if (randomizeAllBtnEl) {
-            randomizeAllBtnEl.addEventListener('click', () => {
-                this.randomizeAllLayers();
-                this.saveSettings();
-            });
-        }
-        
         // Preset controls
         const exportPresetBtnEl = document.getElementById('exportPresetBtn');
         if (exportPresetBtnEl) {
@@ -710,38 +720,52 @@ class FourierWaveGenerator {
                 </div>
                 <div class="control-row">
                     <label>Amplitude:</label>
-                    <input type="range" min="0.01" max="1.0" step="0.01" value="${layer.amplitude}" id="amplitude${i}">
-                    <span class="value-display" id="amplitudeValue${i}">${layer.amplitude.toFixed(2)}</span>
+                    <div class="slider-container">
+                        <input type="range" min="0.01" max="1.0" step="0.01" value="${layer.amplitude}" id="amplitude${i}">
+                        <span class="value-display" id="amplitudeValue${i}">${layer.amplitude.toFixed(2)}</span>
+                    </div>
                 </div>
                 <div class="control-row">
                     <label>Spatial Frequency:</label>
-                    <input type="range" min="0.1" max="5.0" step="0.1" value="${layer.spatialFreq}" id="spatialFreq${i}">
-                    <span class="value-display" id="spatialFreqValue${i}">${layer.spatialFreq.toFixed(1)}</span>
+                    <div class="slider-container">
+                        <input type="range" min="0.1" max="5.0" step="0.1" value="${layer.spatialFreq}" id="spatialFreq${i}">
+                        <span class="value-display" id="spatialFreqValue${i}">${layer.spatialFreq.toFixed(1)}</span>
+                    </div>
                 </div>
                 <div class="control-row">
                     <label>Temporal Frequency:</label>
-                    <input type="range" min="1" max="16" step="1" value="${layer.temporalFreq}" id="temporalFreq${i}">
-                    <span class="value-display" id="temporalFreqValue${i}">${layer.temporalFreq}</span>
+                    <div class="slider-container">
+                        <input type="range" min="1" max="16" step="1" value="${layer.temporalFreq}" id="temporalFreq${i}">
+                        <span class="value-display" id="temporalFreqValue${i}">${layer.temporalFreq}</span>
+                    </div>
                 </div>
                 <div class="control-row">
                     <label>Direction X:</label>
-                    <input type="range" min="-1.0" max="1.0" step="0.1" value="${layer.direction.x}" id="directionX${i}">
-                    <span class="value-display" id="directionXValue${i}">${layer.direction.x.toFixed(1)}</span>
+                    <div class="slider-container">
+                        <input type="range" min="-1.0" max="1.0" step="0.1" value="${layer.direction.x}" id="directionX${i}">
+                        <span class="value-display" id="directionXValue${i}">${layer.direction.x.toFixed(1)}</span>
+                    </div>
                 </div>
                 <div class="control-row">
                     <label>Direction Y:</label>
-                    <input type="range" min="-1.0" max="1.0" step="0.1" value="${layer.direction.y}" id="directionY${i}">
-                    <span class="value-display" id="directionYValue${i}">${layer.direction.y.toFixed(1)}</span>
+                    <div class="slider-container">
+                        <input type="range" min="-1.0" max="1.0" step="0.1" value="${layer.direction.y}" id="directionY${i}">
+                        <span class="value-display" id="directionYValue${i}">${layer.direction.y.toFixed(1)}</span>
+                    </div>
                 </div>
                 <div class="control-row">
                     <label>Phase:</label>
-                    <input type="range" min="0.0" max="6.28" step="0.1" value="${layer.phase}" id="phase${i}">
-                    <span class="value-display" id="phaseValue${i}">${layer.phase.toFixed(1)}</span>
+                    <div class="slider-container">
+                        <input type="range" min="0.0" max="6.28" step="0.1" value="${layer.phase}" id="phase${i}">
+                        <span class="value-display" id="phaseValue${i}">${layer.phase.toFixed(1)}</span>
+                    </div>
                 </div>
                 <div class="control-row">
                     <label>Sharpness:</label>
-                    <input type="range" min="0.0" max="1.0" step="0.1" value="${layer.sharpness}" id="sharpness${i}">
-                    <span class="value-display" id="sharpnessValue${i}">${layer.sharpness.toFixed(1)}</span>
+                    <div class="slider-container">
+                        <input type="range" min="0.0" max="1.0" step="0.1" value="${layer.sharpness}" id="sharpness${i}">
+                        <span class="value-display" id="sharpnessValue${i}">${layer.sharpness.toFixed(1)}</span>
+                    </div>
                 </div>
             `;
             container.appendChild(layerDiv);
