@@ -7,7 +7,8 @@
 
 A GPU-accelerated wave animation generator using Fourier synthesis, perfect for creating seamlessly tileable animated normal maps and height maps for games and visual effects.
 
-![Wave Generator Demo](https://img.shields.io/badge/Demo-Live%20Preview-blue?style=for-the-badge&logo=javascript)
+[![Wave Generator Demo](https://img.shields.io/badge/Demo-Live%20Preview-blue?style=for-the-badge&logo=javascript)](https://ammarillo.github.io/WaveGenV2/)
+
 
 ## ✨ Features
 
