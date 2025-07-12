@@ -21,6 +21,7 @@ class FourierWaveGenerator {
         this.outputMode = 'normal'; // 'normal' or 'height'
         this.normalizeHeights = false;
         this.normalMapFormat = 'opengl'; // 'directx' or 'opengl'
+        this.tilingPreview = 1; // How many tiles to show for preview (1 = no tiling, 2 = 2x2, etc.)
         this.layerCount = 4;
         this.waveLayers = [];
         
@@ -58,6 +59,7 @@ class FourierWaveGenerator {
             heightRange: this.heightRange,
             normalizeHeights: this.normalizeHeights,
             normalMapFormat: this.normalMapFormat,
+            tilingPreview: this.tilingPreview,
             waveLayers: this.waveLayers.slice(0, this.layerCount),
             // Export settings
             exportRes: document.getElementById('exportRes')?.value || '512',
@@ -89,6 +91,7 @@ class FourierWaveGenerator {
                 this.heightRange = settings.heightRange || 1.0;
                 this.normalizeHeights = settings.normalizeHeights || false;
                 this.normalMapFormat = settings.normalMapFormat || 'opengl';
+                this.tilingPreview = settings.tilingPreview || 1;
                 
                 // Load wave layers with backward compatibility
                 if (settings.waveLayers && Array.isArray(settings.waveLayers)) {
@@ -131,6 +134,8 @@ class FourierWaveGenerator {
         const heightRangeValue = document.getElementById('heightRangeValue');
         const normalizeHeightsInput = document.getElementById('normalizeHeights');
         const normalMapFormatSelect = document.getElementById('normalMapFormat');
+        const tilingPreviewInput = document.getElementById('tilingPreview');
+        const tilingPreviewValue = document.getElementById('tilingPreviewValue');
         const exportResSelect = document.getElementById('exportRes');
         const exportFramesInput = document.getElementById('exportFrames');
         
@@ -159,6 +164,10 @@ class FourierWaveGenerator {
         }
         if (normalizeHeightsInput) normalizeHeightsInput.checked = this.normalizeHeights;
         if (normalMapFormatSelect) normalMapFormatSelect.value = this.normalMapFormat;
+        if (tilingPreviewInput) {
+            tilingPreviewInput.value = this.tilingPreview;
+            if (tilingPreviewValue) tilingPreviewValue.textContent = this.tilingPreview;
+        }
         
         // Restore export settings if they exist
         try {
@@ -255,6 +264,7 @@ class FourierWaveGenerator {
             uniform int u_outputMode; // 0 = normal, 1 = height
             uniform bool u_normalizeHeights;
             uniform bool u_isDirectXNormal; // true = DirectX, false = OpenGL
+            uniform float u_tilingPreview; // Number of tiles to show for preview
             uniform int u_layerCount;
             
             // Fourier wave layer parameters (up to 8 layers)
@@ -446,13 +456,16 @@ class FourierWaveGenerator {
             }
             
             void main() {
+                // Apply tiling preview to UV coordinates
+                vec2 tiledUV = fract(v_uv * u_tilingPreview);
+                
                 if (u_outputMode == 0) {
                     // Normal map mode
-                    vec3 normal = calculateNormal(v_uv, 0.0); // Epsilon no longer used for analytical derivatives
+                    vec3 normal = calculateNormal(tiledUV, 0.0); // Epsilon no longer used for analytical derivatives
                     gl_FragColor = vec4(normal, 1.0);
                 } else {
                     // Height map mode
-                    float height = calculateHeight(v_uv);
+                    float height = calculateHeight(tiledUV);
                     
                     // Normalize height to 0-1 range
                     float normalizedHeight = (height * u_heightRange + 1.0) * 0.5;
@@ -488,6 +501,7 @@ class FourierWaveGenerator {
             outputMode: this.gl.getUniformLocation(this.program, 'u_outputMode'),
             normalizeHeights: this.gl.getUniformLocation(this.program, 'u_normalizeHeights'),
             isDirectXNormal: this.gl.getUniformLocation(this.program, 'u_isDirectXNormal'),
+            tilingPreview: this.gl.getUniformLocation(this.program, 'u_tilingPreview'),
             layerCount: this.gl.getUniformLocation(this.program, 'u_layerCount'),
             amplitudes: this.gl.getUniformLocation(this.program, 'u_amplitudes'),
             spatialFreqs: this.gl.getUniformLocation(this.program, 'u_spatialFreqs'),
@@ -637,6 +651,16 @@ class FourierWaveGenerator {
         if (normalMapFormatEl) {
             normalMapFormatEl.addEventListener('change', (e) => {
                 this.normalMapFormat = e.target.value;
+                this.saveSettings();
+            });
+        }
+        
+        const tilingPreviewEl = document.getElementById('tilingPreview');
+        if (tilingPreviewEl) {
+            tilingPreviewEl.addEventListener('input', (e) => {
+                this.tilingPreview = parseInt(e.target.value);
+                const tilingPreviewValueEl = document.getElementById('tilingPreviewValue');
+                if (tilingPreviewValueEl) tilingPreviewValueEl.textContent = this.tilingPreview.toString();
                 this.saveSettings();
             });
         }
@@ -973,6 +997,7 @@ class FourierWaveGenerator {
         this.gl.uniform1i(this.uniforms.outputMode, this.outputMode === 'normal' ? 0 : 1);
         this.gl.uniform1i(this.uniforms.normalizeHeights, this.normalizeHeights ? 1 : 0);
         this.gl.uniform1i(this.uniforms.isDirectXNormal, this.normalMapFormat === 'directx' ? 1 : 0);
+        this.gl.uniform1f(this.uniforms.tilingPreview, this.tilingPreview);
         this.gl.uniform1i(this.uniforms.layerCount, this.layerCount);
         
         // Fourier wave layer parameters
@@ -1126,6 +1151,7 @@ class FourierWaveGenerator {
             uniform int u_outputMode;
             uniform bool u_normalizeHeights;
             uniform bool u_isDirectXNormal; // true = DirectX, false = OpenGL
+            uniform float u_tilingPreview; // Number of tiles to show for preview
             uniform int u_layerCount;
             uniform float u_amplitudes[8];
             uniform float u_spatialFreqs[8];
@@ -1312,13 +1338,16 @@ class FourierWaveGenerator {
             }
             
             void main() {
+                // Apply tiling preview to UV coordinates (for export, this should always be 1)
+                vec2 tiledUV = fract(v_uv * u_tilingPreview);
+                
                 if (u_outputMode == 0) {
                     // Normal map mode
-                    vec3 normal = calculateNormal(v_uv, 0.0); // Epsilon no longer used for analytical derivatives
+                    vec3 normal = calculateNormal(tiledUV, 0.0); // Epsilon no longer used for analytical derivatives
                     gl_FragColor = vec4(normal, 1.0);
                 } else {
                     // Height map mode
-                    float height = calculateHeight(v_uv);
+                    float height = calculateHeight(tiledUV);
                     
                     // Normalize height to 0-1 range
                     float normalizedHeight = (height * u_heightRange + 1.0) * 0.5;
@@ -1351,6 +1380,7 @@ class FourierWaveGenerator {
             outputMode: gl.getUniformLocation(this.exportProgram, 'u_outputMode'),
             normalizeHeights: gl.getUniformLocation(this.exportProgram, 'u_normalizeHeights'),
             isDirectXNormal: gl.getUniformLocation(this.exportProgram, 'u_isDirectXNormal'),
+            tilingPreview: gl.getUniformLocation(this.exportProgram, 'u_tilingPreview'),
             layerCount: gl.getUniformLocation(this.exportProgram, 'u_layerCount'),
             amplitudes: gl.getUniformLocation(this.exportProgram, 'u_amplitudes'),
             spatialFreqs: gl.getUniformLocation(this.exportProgram, 'u_spatialFreqs'),
@@ -1397,6 +1427,7 @@ class FourierWaveGenerator {
         gl.uniform1i(this.exportUniforms.outputMode, this.outputMode === 'normal' ? 0 : 1);
         gl.uniform1i(this.exportUniforms.normalizeHeights, this.normalizeHeights ? 1 : 0);
         gl.uniform1i(this.exportUniforms.isDirectXNormal, this.normalMapFormat === 'directx' ? 1 : 0);
+        gl.uniform1f(this.exportUniforms.tilingPreview, 1.0); // Always 1 for exports (no tiling)
         gl.uniform1i(this.exportUniforms.layerCount, this.layerCount);
         
         const amplitudes = new Float32Array(8);
