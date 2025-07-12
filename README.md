@@ -27,6 +27,13 @@ A GPU-accelerated wave animation generator using Fourier synthesis, perfect for 
 - Perfect for game engine texture mapping
 - No visible seams when tiled in any direction
 
+### 🌀 **Per-Layer Tileable Perlin Noise Distortion**
+- Each wave layer can be distorted by static, tileable Perlin noise
+- Noise is perfectly seamless and does not animate (static pattern)
+- Noise parameters (amount, scale, seed) are configurable per layer
+- Noise scale is integer and required for perfect tiling
+- Noise seed allows for unique patterns per layer
+
 ### 🎛️ **Dual Output Modes**
 - **Normal Maps**: RGB normal maps for surface detail and lighting effects
 - **Height Maps**: Grayscale displacement maps for tessellation and vertex displacement
@@ -40,12 +47,14 @@ A GPU-accelerated wave animation generator using Fourier synthesis, perfect for 
 ### 💾 **Preset System**
 - Export current settings as JSON presets (now includes date and time in filename)
 - Import and share preset configurations
+- **All per-layer lock states are saved and restored**
 - Version-controlled preset format with backward compatibility
 
 ### 🎨 **Real-time Controls**
 - Live parameter adjustment with instant visual feedback
-- Randomization tools for quick exploration
+- Randomization tools for quick exploration (noise scale always integer)
 - Auto-save functionality for persistent settings
+- **Lock/unlock any parameter per layer, including noise parameters**
 
 ## 🚀 Quick Start
 
@@ -87,7 +96,7 @@ A GPU-accelerated wave animation generator using Fourier synthesis, perfect for 
 
 ### Basic Workflow
 
-1. **Configure Wave Layers**: Adjust amplitude, frequency, direction, and phase for each Fourier component
+1. **Configure Wave Layers**: Adjust amplitude, frequency, direction, phase, and noise for each Fourier component
 2. **Set Global Parameters**: Configure wave scale, normal intensity, and height range
 3. **Choose Output Mode**: Select between normal maps or height maps
 4. **Export Animation**: Generate ZIP file with your animation sequence
@@ -100,10 +109,24 @@ Each Fourier component includes:
 |-----------|-------|-------------|
 | **Amplitude** | 0.01 - 1.0 | Wave height and intensity |
 | **Spatial Frequency** | 0.1 - 5.0 | Wave density in space |
-| **Temporal Frequency** | 1-16 (integers) | Animation speed for perfect looping |
+| **Temporal Frequency** | 1-16 | Animation speed for perfect looping |
 | **Direction X/Y** | -1.0 - 1.0 | Wave propagation direction |
 | **Phase** | 0 - 2π | Initial phase offset |
 | **Sharpness** | 0.0 - 1.0 | Wave shape sharpening |
+| **Noise Amount** | 0.0 - 2.0 | Strength of noise distortion |
+| **Noise Scale** | 1 - 8 | Size/period of the noise |
+| **Noise Seed** | 0.0 - 100.0 | Unique randomization for noise pattern |
+
+#### Parameter Locking
+- Any parameter (including noise) can be locked per layer to prevent randomization or preset overwrite.
+- Lock states are saved and restored with presets.
+
+### Noise Distortion
+- **Static, tileable Perlin noise** is applied to each wave layer's phase, distorting the wave lines.
+- Noise is perfectly seamless in both space and (if animated) time, but is currently static (does not animate).
+- Noise scale must be integer for perfect tiling.
+- Each layer can have a unique noise pattern via the seed parameter.
+- Noise controls are available in the UI for each layer.
 
 ### Output Modes
 
@@ -189,6 +212,8 @@ kᵧ = round(fᵢ × dᵧ) × 2π
 ```
 
 This guarantees that waves complete exact integer cycles across the [0,1] texture space, eliminating seams when tiling.
+
+> **Note:** Perlin noise distortion is also quantized and periodized for perfect tiling, using integer noise scale and periodic boundary conditions.
 
 ### 🔍 Normal Map Generation
 
@@ -298,7 +323,21 @@ This mathematical foundation enables the generation of highly realistic, animata
         "temporalFreq": 1,
         "direction": { "x": 1.0, "y": 0.0 },
         "phase": 0.0,
-        "sharpness": 0.2
+        "sharpness": 0.2,
+        "noiseAmount": 0.5,
+        "noiseScale": 4,
+        "noiseSeed": 12.3,
+        "locked": {
+          "amplitude": false,
+          "spatialFreq": false,
+          "temporalFreq": false,
+          "direction": false,
+          "phase": false,
+          "sharpness": false,
+          "noiseAmount": false,
+          "noiseScale": false,
+          "noiseSeed": false
+        }
       }
     ]
   }
@@ -310,6 +349,7 @@ This mathematical foundation enables the generation of highly realistic, animata
 2. Select your JSON preset file
 3. Settings will be automatically applied
 4. Preset is saved to local storage
+- All lock states and noise parameters are restored.
 
 ## 🎯 Use Cases
 

@@ -1669,7 +1669,10 @@ class FourierWaveGenerator {
                 normalIntensity: this.normalIntensity,
                 heightRange: this.heightRange,
                 normalizeHeights: this.normalizeHeights,
-                waveLayers: this.waveLayers.slice(0, this.layerCount) // Only include active layers
+                waveLayers: this.waveLayers.slice(0, this.layerCount).map(layer => ({
+                    ...layer,
+                    locked: { ...layer.locked }
+                })) // Include locked state for each layer
             }
         };
         
@@ -1716,7 +1719,8 @@ class FourierWaveGenerator {
             if (settings.waveLayers) {
                 this.waveLayers = [...settings.waveLayers];
                 // Ensure all layers have sharpness property (backward compatibility)
-                for (let layer of this.waveLayers) {
+                for (let i = 0; i < this.waveLayers.length; i++) {
+                    let layer = this.waveLayers[i];
                     if (layer.sharpness === undefined) {
                         layer.sharpness = 0.0;
                     }
@@ -1724,8 +1728,15 @@ class FourierWaveGenerator {
                     if (!layer.locked) {
                         layer.locked = {
                             amplitude: false, spatialFreq: false, temporalFreq: false,
-                            direction: false, phase: false, sharpness: false
+                            direction: false, phase: false, sharpness: false,
+                            noiseAmount: false, noiseScale: false, noiseSeed: false
                         };
+                    } else {
+                        // Ensure all lock keys exist
+                        const lockKeys = ['amplitude','spatialFreq','temporalFreq','direction','phase','sharpness','noiseAmount','noiseScale','noiseSeed'];
+                        for (const key of lockKeys) {
+                            if (layer.locked[key] === undefined) layer.locked[key] = false;
+                        }
                     }
                 }
                 // Ensure we have enough layers
