@@ -20,6 +20,7 @@ class FourierWaveGenerator {
         this.heightRange = 1.0;
         this.outputMode = 'normal'; // 'normal' or 'height'
         this.normalizeHeights = false;
+        this.normalMapFormat = 'opengl'; // 'directx' or 'opengl'
         this.layerCount = 4;
         this.waveLayers = [];
         
@@ -56,6 +57,7 @@ class FourierWaveGenerator {
             normalIntensity: this.normalIntensity,
             heightRange: this.heightRange,
             normalizeHeights: this.normalizeHeights,
+            normalMapFormat: this.normalMapFormat,
             waveLayers: this.waveLayers.slice(0, this.layerCount),
             // Export settings
             exportRes: document.getElementById('exportRes')?.value || '512',
@@ -86,6 +88,7 @@ class FourierWaveGenerator {
                 this.normalIntensity = settings.normalIntensity || 0.6;
                 this.heightRange = settings.heightRange || 1.0;
                 this.normalizeHeights = settings.normalizeHeights || false;
+                this.normalMapFormat = settings.normalMapFormat || 'opengl';
                 
                 // Load wave layers with backward compatibility
                 if (settings.waveLayers && Array.isArray(settings.waveLayers)) {
@@ -95,6 +98,13 @@ class FourierWaveGenerator {
                     for (let layer of this.waveLayers) {
                         if (layer.sharpness === undefined) {
                             layer.sharpness = 0.0;
+                        }
+                        // Ensure all layers have locked states (backward compatibility)
+                        if (!layer.locked) {
+                            layer.locked = {
+                                amplitude: false, spatialFreq: false, temporalFreq: false,
+                                direction: false, phase: false, sharpness: false
+                            };
                         }
                     }
                 }
@@ -120,6 +130,7 @@ class FourierWaveGenerator {
         const heightRangeInput = document.getElementById('heightRange');
         const heightRangeValue = document.getElementById('heightRangeValue');
         const normalizeHeightsInput = document.getElementById('normalizeHeights');
+        const normalMapFormatSelect = document.getElementById('normalMapFormat');
         const exportResSelect = document.getElementById('exportRes');
         const exportFramesInput = document.getElementById('exportFrames');
         
@@ -147,6 +158,7 @@ class FourierWaveGenerator {
             if (heightRangeValue) heightRangeValue.textContent = this.heightRange.toFixed(1);
         }
         if (normalizeHeightsInput) normalizeHeightsInput.checked = this.normalizeHeights;
+        if (normalMapFormatSelect) normalMapFormatSelect.value = this.normalMapFormat;
         
         // Restore export settings if they exist
         try {
@@ -165,11 +177,49 @@ class FourierWaveGenerator {
         // Only initialize default wave layers if none exist (i.e., first time or no saved data)
         if (!this.waveLayers || this.waveLayers.length === 0) {
             this.waveLayers = [
-                { amplitude: 0.8, spatialFreq: 0.5, temporalFreq: 1, direction: { x: 1.0, y: 0.0 }, phase: 0.0, sharpness: 0.0 },
-                { amplitude: 0.6, spatialFreq: 1.0, temporalFreq: 2, direction: { x: 0.7, y: 0.7 }, phase: 1.57, sharpness: 0.0 },
-                { amplitude: 0.4, spatialFreq: 1.5, temporalFreq: 3, direction: { x: -0.5, y: 0.8 }, phase: 3.14, sharpness: 0.0 },
-                { amplitude: 0.3, spatialFreq: 2.0, temporalFreq: 4, direction: { x: -0.8, y: -0.6 }, phase: 4.71, sharpness: 0.0 }
+                { 
+                    amplitude: 0.8, spatialFreq: 0.5, temporalFreq: 1, 
+                    direction: { x: 1.0, y: 0.0 }, phase: 0.0, sharpness: 0.0,
+                    locked: {
+                        amplitude: false, spatialFreq: false, temporalFreq: false,
+                        direction: false, phase: false, sharpness: false
+                    }
+                },
+                { 
+                    amplitude: 0.6, spatialFreq: 1.0, temporalFreq: 2, 
+                    direction: { x: 0.7, y: 0.7 }, phase: 1.57, sharpness: 0.0,
+                    locked: {
+                        amplitude: false, spatialFreq: false, temporalFreq: false,
+                        direction: false, phase: false, sharpness: false
+                    }
+                },
+                { 
+                    amplitude: 0.4, spatialFreq: 1.5, temporalFreq: 3, 
+                    direction: { x: -0.5, y: 0.8 }, phase: 3.14, sharpness: 0.0,
+                    locked: {
+                        amplitude: false, spatialFreq: false, temporalFreq: false,
+                        direction: false, phase: false, sharpness: false
+                    }
+                },
+                { 
+                    amplitude: 0.3, spatialFreq: 2.0, temporalFreq: 4, 
+                    direction: { x: -0.8, y: -0.6 }, phase: 4.71, sharpness: 0.0,
+                    locked: {
+                        amplitude: false, spatialFreq: false, temporalFreq: false,
+                        direction: false, phase: false, sharpness: false
+                    }
+                }
             ];
+        } else {
+            // Ensure all existing layers have locked states (backward compatibility)
+            for (let layer of this.waveLayers) {
+                if (!layer.locked) {
+                    layer.locked = {
+                        amplitude: false, spatialFreq: false, temporalFreq: false,
+                        direction: false, phase: false, sharpness: false
+                    };
+                }
+            }
         }
     }
     
@@ -204,6 +254,7 @@ class FourierWaveGenerator {
             uniform float u_heightRange;
             uniform int u_outputMode; // 0 = normal, 1 = height
             uniform bool u_normalizeHeights;
+            uniform bool u_isDirectXNormal; // true = DirectX, false = OpenGL
             uniform int u_layerCount;
             
             // Fourier wave layer parameters (up to 8 layers)
@@ -349,6 +400,12 @@ class FourierWaveGenerator {
                 // Normal vector
                 vec3 normal = normalize(vec3(-dhdx * u_normalIntensity, -dhdy * u_normalIntensity, 1.0));
                 
+                // Apply DirectX vs OpenGL normal map format
+                if (u_isDirectXNormal) {
+                    // DirectX: Y points up, invert Y component
+                    normal.y = -normal.y;
+                }
+                
                 // Convert to normal map format [0,1] range
                 return normal * 0.5 + 0.5;
             }
@@ -430,6 +487,7 @@ class FourierWaveGenerator {
             heightRange: this.gl.getUniformLocation(this.program, 'u_heightRange'),
             outputMode: this.gl.getUniformLocation(this.program, 'u_outputMode'),
             normalizeHeights: this.gl.getUniformLocation(this.program, 'u_normalizeHeights'),
+            isDirectXNormal: this.gl.getUniformLocation(this.program, 'u_isDirectXNormal'),
             layerCount: this.gl.getUniformLocation(this.program, 'u_layerCount'),
             amplitudes: this.gl.getUniformLocation(this.program, 'u_amplitudes'),
             spatialFreqs: this.gl.getUniformLocation(this.program, 'u_spatialFreqs'),
@@ -575,6 +633,14 @@ class FourierWaveGenerator {
             });
         }
         
+        const normalMapFormatEl = document.getElementById('normalMapFormat');
+        if (normalMapFormatEl) {
+            normalMapFormatEl.addEventListener('change', (e) => {
+                this.normalMapFormat = e.target.value;
+                this.saveSettings();
+            });
+        }
+        
         // Export controls
         const exportBtnEl = document.getElementById('exportBtn');
         if (exportBtnEl) {
@@ -628,15 +694,18 @@ class FourierWaveGenerator {
         const normalIntensityRow = document.getElementById('normalIntensityRow');
         const heightRangeRow = document.getElementById('heightRangeRow');
         const normalizeHeightsRow = document.getElementById('normalizeHeightsRow');
+        const normalMapFormatRow = document.getElementById('normalMapFormatRow');
         
         if (this.outputMode === 'normal') {
             normalIntensityRow.style.display = 'flex';
             heightRangeRow.style.display = 'none';
             normalizeHeightsRow.style.display = 'none';
+            if (normalMapFormatRow) normalMapFormatRow.style.display = 'flex';
         } else {
             normalIntensityRow.style.display = 'none';
             heightRangeRow.style.display = 'flex';
             normalizeHeightsRow.style.display = 'flex';
+            if (normalMapFormatRow) normalMapFormatRow.style.display = 'none';
         }
     }
     
@@ -650,13 +719,30 @@ class FourierWaveGenerator {
                 y: (Math.random() - 0.5) * 2            // -1 to 1
             },
             phase: Math.random() * 2 * Math.PI,         // 0 to 2π
-            sharpness: Math.random() * 0.5              // 0 to 0.5 (moderate sharpness)
+            sharpness: Math.random() * 0.5,             // 0 to 0.5 (moderate sharpness)
+            locked: {
+                amplitude: false, spatialFreq: false, temporalFreq: false,
+                direction: false, phase: false, sharpness: false
+            }
         };
     }
     
     randomizeLayer(index) {
         if (index >= 0 && index < this.waveLayers.length) {
-            this.waveLayers[index] = this.generateRandomWaveLayer();
+            const layer = this.waveLayers[index];
+            const newLayer = this.generateRandomWaveLayer();
+            
+            // Only randomize unlocked parameters
+            if (!layer.locked.amplitude) layer.amplitude = newLayer.amplitude;
+            if (!layer.locked.spatialFreq) layer.spatialFreq = newLayer.spatialFreq;
+            if (!layer.locked.temporalFreq) layer.temporalFreq = newLayer.temporalFreq;
+            if (!layer.locked.direction) {
+                layer.direction.x = newLayer.direction.x;
+                layer.direction.y = newLayer.direction.y;
+            }
+            if (!layer.locked.phase) layer.phase = newLayer.phase;
+            if (!layer.locked.sharpness) layer.sharpness = newLayer.sharpness;
+            
             this.updateWaveLayerControls();
             this.saveSettings();
         }
@@ -664,7 +750,19 @@ class FourierWaveGenerator {
     
     randomizeAllLayers() {
         for (let i = 0; i < this.layerCount; i++) {
-            this.waveLayers[i] = this.generateRandomWaveLayer();
+            const layer = this.waveLayers[i];
+            const newLayer = this.generateRandomWaveLayer();
+            
+            // Only randomize unlocked parameters
+            if (!layer.locked.amplitude) layer.amplitude = newLayer.amplitude;
+            if (!layer.locked.spatialFreq) layer.spatialFreq = newLayer.spatialFreq;
+            if (!layer.locked.temporalFreq) layer.temporalFreq = newLayer.temporalFreq;
+            if (!layer.locked.direction) {
+                layer.direction.x = newLayer.direction.x;
+                layer.direction.y = newLayer.direction.y;
+            }
+            if (!layer.locked.phase) layer.phase = newLayer.phase;
+            if (!layer.locked.sharpness) layer.sharpness = newLayer.sharpness;
         }
         this.updateWaveLayerControls();
         this.saveSettings();
@@ -682,7 +780,11 @@ class FourierWaveGenerator {
                 temporalFreq: 1,
                 direction: { x: 1.0, y: 0.0 },
                 phase: 0.0,
-                sharpness: 0.0
+                sharpness: 0.0,
+                locked: {
+                    amplitude: false, spatialFreq: false, temporalFreq: false,
+                    direction: false, phase: false, sharpness: false
+                }
             });
         }
         
@@ -693,11 +795,12 @@ class FourierWaveGenerator {
             layerDiv.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <h4 style="margin: 0;">Fourier Component ${i + 1}</h4>
-                    <button class="randomize-layer-btn" id="randomizeLayer${i}" style="padding: 4px 8px; font-size: 11px; width: auto;">🎲 Randomize</button>
+                    <button class="randomize-layer-btn" id="randomizeLayer${i}" style="padding: 4px 8px; font-size: 11px; width: auto;"><i class="fas fa-shuffle"></i> Randomize</button>
                 </div>
                 <div class="control-row">
                     <label>Amplitude:</label>
                     <div class="slider-container">
+                        <button class="lock-btn" id="lockAmplitude${i}" data-param="amplitude" data-layer="${i}" style="background: none; border: none; color: ${layer.locked.amplitude ? 'white' : '#888'}; padding: 2px; margin-right: 5px; font-size: 14px; cursor: pointer; width: 20px;"><i class="fas ${layer.locked.amplitude ? 'fa-lock' : 'fa-unlock'}"></i></button>
                         <input type="range" min="0.01" max="1.0" step="0.01" value="${layer.amplitude}" id="amplitude${i}">
                         <span class="value-display" id="amplitudeValue${i}">${layer.amplitude.toFixed(2)}</span>
                     </div>
@@ -705,6 +808,7 @@ class FourierWaveGenerator {
                 <div class="control-row">
                     <label>Spatial Frequency:</label>
                     <div class="slider-container">
+                        <button class="lock-btn" id="lockSpatialFreq${i}" data-param="spatialFreq" data-layer="${i}" style="background: none; border: none; color: ${layer.locked.spatialFreq ? 'white' : '#888'}; padding: 2px; margin-right: 5px; font-size: 14px; cursor: pointer; width: 20px;"><i class="fas ${layer.locked.spatialFreq ? 'fa-lock' : 'fa-unlock'}"></i></button>
                         <input type="range" min="0.1" max="5.0" step="0.1" value="${layer.spatialFreq}" id="spatialFreq${i}">
                         <span class="value-display" id="spatialFreqValue${i}">${layer.spatialFreq.toFixed(1)}</span>
                     </div>
@@ -712,6 +816,7 @@ class FourierWaveGenerator {
                 <div class="control-row">
                     <label>Temporal Frequency:</label>
                     <div class="slider-container">
+                        <button class="lock-btn" id="lockTemporalFreq${i}" data-param="temporalFreq" data-layer="${i}" style="background: none; border: none; color: ${layer.locked.temporalFreq ? 'white' : '#888'}; padding: 2px; margin-right: 5px; font-size: 14px; cursor: pointer; width: 20px;"><i class="fas ${layer.locked.temporalFreq ? 'fa-lock' : 'fa-unlock'}"></i></button>
                         <input type="range" min="1" max="16" step="1" value="${layer.temporalFreq}" id="temporalFreq${i}">
                         <span class="value-display" id="temporalFreqValue${i}">${layer.temporalFreq}</span>
                     </div>
@@ -719,6 +824,7 @@ class FourierWaveGenerator {
                 <div class="control-row">
                     <label>Direction X:</label>
                     <div class="slider-container">
+                        <button class="lock-btn" id="lockDirectionX${i}" data-param="direction" data-layer="${i}" style="background: none; border: none; color: ${layer.locked.direction ? 'white' : '#888'}; padding: 2px; margin-right: 5px; font-size: 14px; cursor: pointer; width: 20px;"><i class="fas ${layer.locked.direction ? 'fa-lock' : 'fa-unlock'}"></i></button>
                         <input type="range" min="-1.0" max="1.0" step="0.1" value="${layer.direction.x}" id="directionX${i}">
                         <span class="value-display" id="directionXValue${i}">${layer.direction.x.toFixed(1)}</span>
                     </div>
@@ -726,6 +832,7 @@ class FourierWaveGenerator {
                 <div class="control-row">
                     <label>Direction Y:</label>
                     <div class="slider-container">
+                        <button class="lock-btn" id="lockDirectionY${i}" data-param="direction" data-layer="${i}" style="background: none; border: none; color: ${layer.locked.direction ? 'white' : '#888'}; padding: 2px; margin-right: 5px; font-size: 14px; cursor: pointer; width: 20px;"><i class="fas ${layer.locked.direction ? 'fa-lock' : 'fa-unlock'}"></i></button>
                         <input type="range" min="-1.0" max="1.0" step="0.1" value="${layer.direction.y}" id="directionY${i}">
                         <span class="value-display" id="directionYValue${i}">${layer.direction.y.toFixed(1)}</span>
                     </div>
@@ -733,6 +840,7 @@ class FourierWaveGenerator {
                 <div class="control-row">
                     <label>Phase:</label>
                     <div class="slider-container">
+                        <button class="lock-btn" id="lockPhase${i}" data-param="phase" data-layer="${i}" style="background: none; border: none; color: ${layer.locked.phase ? 'white' : '#888'}; padding: 2px; margin-right: 5px; font-size: 14px; cursor: pointer; width: 20px;"><i class="fas ${layer.locked.phase ? 'fa-lock' : 'fa-unlock'}"></i></button>
                         <input type="range" min="0.0" max="6.28" step="0.1" value="${layer.phase}" id="phase${i}">
                         <span class="value-display" id="phaseValue${i}">${layer.phase.toFixed(1)}</span>
                     </div>
@@ -740,6 +848,7 @@ class FourierWaveGenerator {
                 <div class="control-row">
                     <label>Sharpness:</label>
                     <div class="slider-container">
+                        <button class="lock-btn" id="lockSharpness${i}" data-param="sharpness" data-layer="${i}" style="background: none; border: none; color: ${layer.locked.sharpness ? 'white' : '#888'}; padding: 2px; margin-right: 5px; font-size: 14px; cursor: pointer; width: 20px;"><i class="fas ${layer.locked.sharpness ? 'fa-lock' : 'fa-unlock'}"></i></button>
                         <input type="range" min="0.0" max="1.0" step="0.1" value="${layer.sharpness}" id="sharpness${i}">
                         <span class="value-display" id="sharpnessValue${i}">${layer.sharpness.toFixed(1)}</span>
                     </div>
@@ -823,6 +932,32 @@ class FourierWaveGenerator {
                 this.saveSettings();
             });
             
+            // Lock button event listeners
+            const lockButtons = [
+                { id: `lockAmplitude${i}`, param: 'amplitude' },
+                { id: `lockSpatialFreq${i}`, param: 'spatialFreq' },
+                { id: `lockTemporalFreq${i}`, param: 'temporalFreq' },
+                { id: `lockDirectionX${i}`, param: 'direction' },
+                { id: `lockDirectionY${i}`, param: 'direction' },
+                { id: `lockPhase${i}`, param: 'phase' },
+                { id: `lockSharpness${i}`, param: 'sharpness' }
+            ];
+            
+            lockButtons.forEach(({ id, param }) => {
+                const lockBtn = document.getElementById(id);
+                if (lockBtn) {
+                    lockBtn.addEventListener('click', () => {
+                        // Toggle lock state
+                        layer.locked[param] = !layer.locked[param];
+                        
+                        // Update button appearance
+                        lockBtn.innerHTML = `<i class="fas ${layer.locked[param] ? 'fa-lock' : 'fa-unlock'}"></i>`;
+                        lockBtn.style.color = layer.locked[param] ? 'white' : '#888';
+                        
+                        this.saveSettings();
+                    });
+                }
+            });
 
         }
     }
@@ -837,6 +972,7 @@ class FourierWaveGenerator {
         this.gl.uniform1f(this.uniforms.heightRange, this.heightRange);
         this.gl.uniform1i(this.uniforms.outputMode, this.outputMode === 'normal' ? 0 : 1);
         this.gl.uniform1i(this.uniforms.normalizeHeights, this.normalizeHeights ? 1 : 0);
+        this.gl.uniform1i(this.uniforms.isDirectXNormal, this.normalMapFormat === 'directx' ? 1 : 0);
         this.gl.uniform1i(this.uniforms.layerCount, this.layerCount);
         
         // Fourier wave layer parameters
@@ -989,6 +1125,7 @@ class FourierWaveGenerator {
             uniform float u_heightRange;
             uniform int u_outputMode;
             uniform bool u_normalizeHeights;
+            uniform bool u_isDirectXNormal; // true = DirectX, false = OpenGL
             uniform int u_layerCount;
             uniform float u_amplitudes[8];
             uniform float u_spatialFreqs[8];
@@ -1130,6 +1267,12 @@ class FourierWaveGenerator {
                 // Normal vector
                 vec3 normal = normalize(vec3(-dhdx * u_normalIntensity, -dhdy * u_normalIntensity, 1.0));
                 
+                // Apply DirectX vs OpenGL normal map format
+                if (u_isDirectXNormal) {
+                    // DirectX: Y points up, invert Y component
+                    normal.y = -normal.y;
+                }
+                
                 // Convert to normal map format [0,1] range
                 return normal * 0.5 + 0.5;
             }
@@ -1207,6 +1350,7 @@ class FourierWaveGenerator {
             heightRange: gl.getUniformLocation(this.exportProgram, 'u_heightRange'),
             outputMode: gl.getUniformLocation(this.exportProgram, 'u_outputMode'),
             normalizeHeights: gl.getUniformLocation(this.exportProgram, 'u_normalizeHeights'),
+            isDirectXNormal: gl.getUniformLocation(this.exportProgram, 'u_isDirectXNormal'),
             layerCount: gl.getUniformLocation(this.exportProgram, 'u_layerCount'),
             amplitudes: gl.getUniformLocation(this.exportProgram, 'u_amplitudes'),
             spatialFreqs: gl.getUniformLocation(this.exportProgram, 'u_spatialFreqs'),
@@ -1252,6 +1396,7 @@ class FourierWaveGenerator {
         gl.uniform1f(this.exportUniforms.heightRange, this.heightRange);
         gl.uniform1i(this.exportUniforms.outputMode, this.outputMode === 'normal' ? 0 : 1);
         gl.uniform1i(this.exportUniforms.normalizeHeights, this.normalizeHeights ? 1 : 0);
+        gl.uniform1i(this.exportUniforms.isDirectXNormal, this.normalMapFormat === 'directx' ? 1 : 0);
         gl.uniform1i(this.exportUniforms.layerCount, this.layerCount);
         
         const amplitudes = new Float32Array(8);
@@ -1376,6 +1521,13 @@ class FourierWaveGenerator {
                 for (let layer of this.waveLayers) {
                     if (layer.sharpness === undefined) {
                         layer.sharpness = 0.0;
+                    }
+                    // Ensure all layers have locked states (backward compatibility)
+                    if (!layer.locked) {
+                        layer.locked = {
+                            amplitude: false, spatialFreq: false, temporalFreq: false,
+                            direction: false, phase: false, sharpness: false
+                        };
                     }
                 }
                 // Ensure we have enough layers

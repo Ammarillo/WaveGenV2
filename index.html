@@ -6,6 +6,8 @@
     <title>WaveGen</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Open Graph / Facebook / Discord -->
     <meta property="og:type" content="website">
@@ -37,7 +39,7 @@
         <div class="controls">
             <!-- Mobile Randomize Button -->
             <div id="randomizeAllBtnMobileControlGroup" class="control-group">
-                <button id="randomizeAllBtnMobile" class="button">🎲 Randomize All Layers</button>
+                <button id="randomizeAllBtnMobile" class="button"><i class="fas fa-shuffle"></i> Randomize All Layers</button>
             </div>
             <div class="control-group">
                 <h3>Animation Settings</h3>
@@ -94,6 +96,16 @@
                     </div>
                 </div>
                 
+                <div class="control-row" id="normalMapFormatRow">
+                    <label>Normal Map Format:</label>
+                    <div class="slider-container">
+                        <select id="normalMapFormat">
+                            <option value="opengl">OpenGL (Y-)</option>
+                            <option value="directx">DirectX (Y+)</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <div class="control-row" id="heightRangeRow" style="display: none;">
                     <label>Height Range:</label>
                     <div class="slider-container">
@@ -112,7 +124,7 @@
             
             <div class="control-group">
                 <h3>Wave Layers</h3>
-                <button id="randomizeAllBtn">🎲 Randomize All Layers</button>
+                <button id="randomizeAllBtn"><i class="fas fa-shuffle"></i> Randomize All Layers</button>
                 <div id="waveLayers">
                     <!-- Wave layer controls will be generated here -->
                 </div>
@@ -120,9 +132,9 @@
             
             <div class="control-group">
                 <h3>Presets</h3>
-                <button id="exportPresetBtn">💾 Export Preset</button>
+                <button id="exportPresetBtn"><i class="fas fa-save"></i> Export Preset</button>
                 <input type="file" id="importPresetFile" accept=".json" style="display: none;">
-                <button id="importPresetBtn" class="button" style="margin-top: 10px;">📁 Import Preset</button>
+                <button id="importPresetBtn" class="button" style="margin-top: 10px;"><i class="fas fa-folder-open"></i> Import Preset</button>
             </div>
             
             <div class="export-controls">

@@ -518,4 +518,53 @@ button:active {
 
 #randomizeAllBtnMobileControlGroup {
     display: none; /* Hidden by default on desktop */
+}
+
+/* Lock button styles */
+.lock-btn {
+    background: none !important;
+    border: none !important;
+    padding: 2px !important;
+    margin: 0 5px 0 0 !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 3px !important;
+    transition: all 0.2s ease !important;
+    flex-shrink: 0 !important;
+}
+
+.lock-btn:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.lock-btn:active {
+    transform: scale(0.95) !important;
+}
+
+/* FontAwesome icon styling for buttons */
+.fas {
+    margin-right: 6px;
+}
+
+/* Remove margin for icons that are standalone in buttons */
+.lock-btn .fas {
+    margin-right: 0;
+}
+
+/* Adjust slider container spacing for lock buttons */
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
+    height: 100%;
 } 
