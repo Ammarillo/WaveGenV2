@@ -186,102 +186,45 @@ class FourierWaveGenerator {
     initializeWaveLayers() {
         // Only initialize default wave layers if none exist (i.e., first time or no saved data)
         if (!this.waveLayers || this.waveLayers.length === 0) {
-            // Default values from the provided preset
-            this.loopDuration = 2;
-            this.speed = 1;
-            this.layerCount = 4;
-            this.outputMode = 'normal';
-            this.waveScale = 0.2;
-            this.normalIntensity = 0.6;
-            this.heightRange = 1;
-            this.normalizeHeights = false;
             this.waveLayers = [
-                {
-                    amplitude: 0.760791620536211,
-                    spatialFreq: 2.8672935064999376,
-                    temporalFreq: 1,
-                    direction: { x: 0.350878539760334, y: 0.9882362770646296 },
-                    phase: 4.871941391949148,
-                    sharpness: 0.258279665551131,
-                    noiseAmount: 1.29,
-                    noiseScale: 3,
-                    noiseSeed: 86.40155376486854,
+                { 
+                    amplitude: 0.8, spatialFreq: 0.5, temporalFreq: 1, 
+                    direction: { x: 1.0, y: 0.0 }, phase: 0.0, sharpness: 0.0,
+                    noiseAmount: 0.0, noiseScale: 1.0, noiseSeed: 0.0,
                     locked: {
-                        amplitude: false,
-                        spatialFreq: false,
-                        temporalFreq: true,
-                        direction: false,
-                        phase: false,
-                        sharpness: false,
-                        noiseAmount: true,
-                        noiseScale: true,
-                        noiseSeed: false
+                        amplitude: false, spatialFreq: false, temporalFreq: false,
+                        direction: false, phase: false, sharpness: false,
+                        noiseAmount: false, noiseScale: false, noiseSeed: false
                     }
                 },
-                {
-                    amplitude: 0.34135314719439325,
-                    spatialFreq: 0.2519878553109299,
-                    temporalFreq: 1,
-                    direction: { x: 0.6215928051596777, y: 0.6400997395562764 },
-                    phase: 2.276517566190615,
-                    sharpness: 0.4295510851665134,
-                    noiseAmount: 1.29,
-                    noiseScale: 3,
-                    noiseSeed: 20.659010320996707,
+                { 
+                    amplitude: 0.6, spatialFreq: 1.0, temporalFreq: 2, 
+                    direction: { x: 0.7, y: 0.7 }, phase: 1.57, sharpness: 0.0,
+                    noiseAmount: 0.0, noiseScale: 1.0, noiseSeed: 1.0,
                     locked: {
-                        amplitude: false,
-                        spatialFreq: false,
-                        temporalFreq: true,
-                        direction: false,
-                        phase: false,
-                        sharpness: false,
-                        noiseAmount: true,
-                        noiseScale: true,
-                        noiseSeed: false
+                        amplitude: false, spatialFreq: false, temporalFreq: false,
+                        direction: false, phase: false, sharpness: false,
+                        noiseAmount: false, noiseScale: false, noiseSeed: false
                     }
                 },
-                {
-                    amplitude: 0.26343235391366965,
-                    spatialFreq: 1.9660202692872109,
-                    temporalFreq: 1,
-                    direction: { x: -0.06170863926577397, y: -0.2670238032030643 },
-                    phase: 2.0871826766083563,
-                    sharpness: 0.009364667366090929,
-                    noiseAmount: 1.29,
-                    noiseScale: 3,
-                    noiseSeed: 82.87845150991001,
+                { 
+                    amplitude: 0.4, spatialFreq: 1.5, temporalFreq: 3, 
+                    direction: { x: -0.5, y: 0.8 }, phase: 3.14, sharpness: 0.0,
+                    noiseAmount: 0.0, noiseScale: 1.0, noiseSeed: 2.0,
                     locked: {
-                        amplitude: false,
-                        spatialFreq: false,
-                        temporalFreq: true,
-                        direction: false,
-                        phase: false,
-                        sharpness: false,
-                        noiseAmount: true,
-                        noiseScale: true,
-                        noiseSeed: false
+                        amplitude: false, spatialFreq: false, temporalFreq: false,
+                        direction: false, phase: false, sharpness: false,
+                        noiseAmount: false, noiseScale: false, noiseSeed: false
                     }
                 },
-                {
-                    amplitude: 0.35759251034961737,
-                    spatialFreq: 2.8636311035403823,
-                    temporalFreq: 1,
-                    direction: { x: 0.47385921038740286, y: 0.7485832352948798 },
-                    phase: 0.7981802870882883,
-                    sharpness: 0.13054023625098327,
-                    noiseAmount: 1.29,
-                    noiseScale: 3,
-                    noiseSeed: 46.982823070831394,
+                { 
+                    amplitude: 0.3, spatialFreq: 2.0, temporalFreq: 4, 
+                    direction: { x: -0.8, y: -0.6 }, phase: 4.71, sharpness: 0.0,
+                    noiseAmount: 0.0, noiseScale: 1.0, noiseSeed: 3.0,
                     locked: {
-                        amplitude: false,
-                        spatialFreq: false,
-                        temporalFreq: true,
-                        direction: false,
-                        phase: false,
-                        sharpness: false,
-                        noiseAmount: true,
-                        noiseScale: true,
-                        noiseSeed: false
+                        amplitude: false, spatialFreq: false, temporalFreq: false,
+                        direction: false, phase: false, sharpness: false,
+                        noiseAmount: false, noiseScale: false, noiseSeed: false
                     }
                 }
             ];
