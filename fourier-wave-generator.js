@@ -106,7 +106,8 @@ class FourierWaveGenerator {
                         if (!layer.locked) {
                             layer.locked = {
                                 amplitude: false, spatialFreq: false, temporalFreq: false,
-                                direction: false, phase: false, sharpness: false
+                                direction: false, phase: false, sharpness: false,
+                                noiseAmount: false, noiseScale: false, noiseSeed: false
                             };
                         }
                     }
@@ -189,45 +190,61 @@ class FourierWaveGenerator {
                 { 
                     amplitude: 0.8, spatialFreq: 0.5, temporalFreq: 1, 
                     direction: { x: 1.0, y: 0.0 }, phase: 0.0, sharpness: 0.0,
+                    noiseAmount: 0.0, noiseScale: 1.0, noiseSeed: 0.0,
                     locked: {
                         amplitude: false, spatialFreq: false, temporalFreq: false,
-                        direction: false, phase: false, sharpness: false
+                        direction: false, phase: false, sharpness: false,
+                        noiseAmount: false, noiseScale: false, noiseSeed: false
                     }
                 },
                 { 
                     amplitude: 0.6, spatialFreq: 1.0, temporalFreq: 2, 
                     direction: { x: 0.7, y: 0.7 }, phase: 1.57, sharpness: 0.0,
+                    noiseAmount: 0.0, noiseScale: 1.0, noiseSeed: 1.0,
                     locked: {
                         amplitude: false, spatialFreq: false, temporalFreq: false,
-                        direction: false, phase: false, sharpness: false
+                        direction: false, phase: false, sharpness: false,
+                        noiseAmount: false, noiseScale: false, noiseSeed: false
                     }
                 },
                 { 
                     amplitude: 0.4, spatialFreq: 1.5, temporalFreq: 3, 
                     direction: { x: -0.5, y: 0.8 }, phase: 3.14, sharpness: 0.0,
+                    noiseAmount: 0.0, noiseScale: 1.0, noiseSeed: 2.0,
                     locked: {
                         amplitude: false, spatialFreq: false, temporalFreq: false,
-                        direction: false, phase: false, sharpness: false
+                        direction: false, phase: false, sharpness: false,
+                        noiseAmount: false, noiseScale: false, noiseSeed: false
                     }
                 },
                 { 
                     amplitude: 0.3, spatialFreq: 2.0, temporalFreq: 4, 
                     direction: { x: -0.8, y: -0.6 }, phase: 4.71, sharpness: 0.0,
+                    noiseAmount: 0.0, noiseScale: 1.0, noiseSeed: 3.0,
                     locked: {
                         amplitude: false, spatialFreq: false, temporalFreq: false,
-                        direction: false, phase: false, sharpness: false
+                        direction: false, phase: false, sharpness: false,
+                        noiseAmount: false, noiseScale: false, noiseSeed: false
                     }
                 }
             ];
         } else {
-            // Ensure all existing layers have locked states (backward compatibility)
-            for (let layer of this.waveLayers) {
+            // Ensure all existing layers have locked states and noise params (backward compatibility)
+            for (let i = 0; i < this.waveLayers.length; i++) {
+                let layer = this.waveLayers[i];
                 if (!layer.locked) {
                     layer.locked = {
                         amplitude: false, spatialFreq: false, temporalFreq: false,
-                        direction: false, phase: false, sharpness: false
+                        direction: false, phase: false, sharpness: false,
+                        noiseAmount: false, noiseScale: false, noiseSeed: false
                     };
                 }
+                if (layer.noiseAmount === undefined) layer.noiseAmount = 0.0;
+                if (layer.noiseScale === undefined) layer.noiseScale = 1.0;
+                if (layer.noiseSeed === undefined) layer.noiseSeed = i * 1.0;
+                if (layer.locked.noiseAmount === undefined) layer.locked.noiseAmount = false;
+                if (layer.locked.noiseScale === undefined) layer.locked.noiseScale = false;
+                if (layer.locked.noiseSeed === undefined) layer.locked.noiseSeed = false;
             }
         }
     }
@@ -274,82 +291,117 @@ class FourierWaveGenerator {
             uniform vec2 u_directions[8];
             uniform float u_phases[8];
             uniform float u_sharpnesses[8];
+            // Noise parameters
+            uniform float u_noiseAmounts[8];
+            uniform float u_noiseScales[8];
+            uniform float u_noiseSeeds[8];
             
             // WebGL-compatible round function
             float roundCompat(float x) {
                 return floor(x + 0.5);
             }
             
+            // Hash function for gradients
+            vec2 hash2(vec2 p) {
+                float x = fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+                float y = fract(sin(dot(p, vec2(269.5, 183.3))) * 12345.6789);
+                return vec2(x, y) * 2.0 - 1.0;
+            }
+            // Tileable Perlin noise with period 'period'
+            float tileablePerlinNoise(vec2 uv, float period, float seed) {
+                // Periodic lattice
+                vec2 p = uv * period;
+                vec2 pi = floor(p);
+                vec2 pf = fract(p);
+                // Wrap lattice points
+                float w = period;
+                vec2 i00 = mod(pi, w);
+                vec2 i10 = mod(pi + vec2(1.0, 0.0), w);
+                vec2 i01 = mod(pi + vec2(0.0, 1.0), w);
+                vec2 i11 = mod(pi + vec2(1.0, 1.0), w);
+                // Gradients
+                vec2 g00 = hash2(i00 + seed);
+                vec2 g10 = hash2(i10 + seed);
+                vec2 g01 = hash2(i01 + seed);
+                vec2 g11 = hash2(i11 + seed);
+                // Distance vectors
+                vec2 d00 = pf - vec2(0.0, 0.0);
+                vec2 d10 = pf - vec2(1.0, 0.0);
+                vec2 d01 = pf - vec2(0.0, 1.0);
+                vec2 d11 = pf - vec2(1.0, 1.0);
+                // Dot products
+                float v00 = dot(g00, d00);
+                float v10 = dot(g10, d10);
+                float v01 = dot(g01, d01);
+                float v11 = dot(g11, d11);
+                // Interpolation
+                vec2 f = pf * pf * (3.0 - 2.0 * pf);
+                float vx0 = mix(v00, v10, f.x);
+                float vx1 = mix(v01, v11, f.x);
+                float v = mix(vx0, vx1, f.y);
+                return v * 1.5; // [-1,1] (scaled)
+            }
+            // Tileable 3D Perlin noise for seamless animation
+            float tileablePerlinNoise3D(vec2 uv, float t, float period, float seed) {
+                float z = t * period;
+                float w = period;
+                float z0 = floor(z);
+                float z1 = z0 + 1.0;
+                float fz = fract(z);
+                float n0 = tileablePerlinNoise(uv, period, seed + z0);
+                float n1 = tileablePerlinNoise(uv, period, seed + z1);
+                return mix(n0, n1, fz);
+            }
+            
             // Wave sharpening function using the complete mathematical formula
-            // Creates oscilloscope-like waveforms with sharp valleys and flat, shaped peaks
             float sharpenWave(float wave, float sharpness) {
                 if (sharpness <= 0.001) {
                     return wave;
                 }
-                
-                // Convert sharpness [0,1] to power parameter p
-                // Higher sharpness = lower p = more dramatic shaping
-                float p = 1.0 / (1.0 + sharpness * 4.0); // Range: p from 1.0 to 0.2
-                
-                // Step 1: Flip the wave to target valleys instead of peaks
+                float p = 1.0 / (1.0 + sharpness * 4.0);
                 float y0 = -wave;
-                
-                // Step 2: Shift to negative space
-                float y1 = y0 - 1.0; // Range: [-2, 0]
-                
-                // Step 3: Apply power function in negative space
-                // y2 = -((-y1)^(1/p))
+                float y1 = y0 - 1.0;
                 float y2 = -pow(-y1, 1.0 / p);
-                
-                // Step 4: Shift back to center around zero
                 float y3 = y2 + 1.0;
-                
-                // Step 5: Normalize back to [-1, 1] range
-                // For this specific function, we can calculate the range analytically
-                // When y1 = -2 (wave = -1): y2 = -pow(2, 1/p), y3 = 1 - pow(2, 1/p)
-                // When y1 = 0 (wave = 1): y2 = 0, y3 = 1
                 float minY3 = 1.0 - pow(2.0, 1.0 / p);
                 float maxY3 = 1.0;
                 float y4 = 2.0 * (y3 - minY3) / (maxY3 - minY3) - 1.0;
-                
-                // Step 6: Flip back to restore original orientation (now valleys are sharp)
                 float y5 = -y4;
-                
-                // Blend between original wave and sharpened wave based on sharpness parameter
                 return mix(wave, y5, sharpness);
             }
             
-            // Fourier wave component function with seamless tiling and wave sharpening
+            // Tileable 4D Perlin noise for seamless animation loop (space: uv, time: circle)
+            float tileablePerlinNoise4D(vec2 uv, float t, float period, float seed) {
+                // Map time t in [0,1] to a circle
+                float angle = t * 6.2831853; // 2π
+                float tx = cos(angle);
+                float ty = sin(angle);
+                // Use (uv.x, uv.y, tx, ty) as 4D input
+                // We'll fake 4D by combining two 2D noises
+                float n1 = tileablePerlinNoise(uv + tx, period, seed);
+                float n2 = tileablePerlinNoise(uv + ty, period, seed + 17.0);
+                return (n1 + n2) * 0.5;
+            }
+            
+            // Fourier wave component function with seamless tiling, wave sharpening, and noise distortion
             float fourierComponent(vec2 uv, float amplitude, float spatialFreq, float temporalFreq, 
-                                 vec2 direction, float phaseOffset, float time, float sharpness) {
+                                 vec2 direction, float phaseOffset, float time, float sharpness,
+                                 float noiseAmount, float noiseScale, float noiseSeed) {
                 // Normalize direction
                 vec2 dir = normalize(direction);
-                
-                // For seamless tiling, work directly with UV coordinates [0,1]
-                // and ensure wave vectors create integer cycles across the tile
-                
-                // Quantize the wave vector components to ensure seamless tiling
-                // Each component should complete integer cycles across [0,1]
                 float kx = roundCompat(spatialFreq * dir.x) * 2.0 * 3.14159;
                 float ky = roundCompat(spatialFreq * dir.y) * 2.0 * 3.14159;
                 vec2 k = vec2(kx, ky);
-                
-                // Use UV coordinates directly for spatial phase
                 float spatialPhase = dot(k, uv);
-                
-                // Temporal phase: ω * t (ω is integer for perfect looping)
                 float temporalPhase = temporalFreq * 2.0 * 3.14159 * time;
-                
-                // Total phase
-                float phase = spatialPhase + temporalPhase + phaseOffset;
-                
-                // Generate base sine wave
+                float noise = 0.0;
+                if (noiseAmount > 0.001) {
+                    // Remove time dependence: use only spatial noise
+                    noise = tileablePerlinNoise(uv, noiseScale, noiseSeed) * noiseAmount;
+                }
+                float phase = spatialPhase + temporalPhase + phaseOffset + noise;
                 float wave = sin(phase);
-                
-                // Apply wave sharpening for more realistic wave shapes
                 float sharpenedWave = sharpenWave(wave, sharpness);
-                
-                // Return amplified component
                 return amplitude * sharpenedWave;
             }
             
@@ -368,27 +420,29 @@ class FourierWaveGenerator {
                     vec2 direction = normalize(u_directions[i]);
                     float phaseOffset = u_phases[i];
                     float sharpness = u_sharpnesses[i];
+                    float noiseAmount = u_noiseAmounts[i];
+                    float noiseScale = u_noiseScales[i];
+                    float noiseSeed = u_noiseSeeds[i];
                     
-                    // Quantized wave vector for seamless tiling
                     float kx = roundCompat(spatialFreq * direction.x) * 2.0 * 3.14159;
                     float ky = roundCompat(spatialFreq * direction.y) * 2.0 * 3.14159;
                     
-                    // Phase calculation
                     float spatialPhase = kx * uv.x + ky * uv.y;
                     float temporalPhase = temporalFreq * 2.0 * 3.14159 * u_time;
-                    float totalPhase = spatialPhase + temporalPhase + phaseOffset;
+                    float noise = 0.0;
+                    if (noiseAmount > 0.001) {
+                        // Remove time dependence: use only spatial noise
+                        noise = tileablePerlinNoise(uv, noiseScale, noiseSeed) * noiseAmount;
+                    }
+                    float totalPhase = spatialPhase + temporalPhase + phaseOffset + noise;
                     
-                    // Base wave and its derivative
                     float wave = sin(totalPhase);
                     float waveDerivative = cos(totalPhase);
                     
-                    // Apply sharpening to both wave and derivative
                     float sharpenedWave = sharpenWave(wave, sharpness);
                     
-                    // For the derivative, we need to account for the sharpening transformation
                     float sharpenedDerivative = waveDerivative;
                     if (sharpness > 0.001) {
-                        // Approximate the derivative of the sharpened wave
                         float p = 1.0 / (1.0 + sharpness * 4.0);
                         float y0 = -wave;
                         float y1 = y0 - 1.0;
@@ -398,25 +452,19 @@ class FourierWaveGenerator {
                         }
                     }
                     
-                    // Accumulate gradients
                     dhdx += amplitude * sharpenedDerivative * kx;
                     dhdy += amplitude * sharpenedDerivative * ky;
                 }
                 
-                // Apply wave scale
                 dhdx *= u_waveScale;
                 dhdy *= u_waveScale;
                 
-                // Normal vector
                 vec3 normal = normalize(vec3(-dhdx * u_normalIntensity, -dhdy * u_normalIntensity, 1.0));
                 
-                // Apply DirectX vs OpenGL normal map format
                 if (u_isDirectXNormal) {
-                    // DirectX: Y points up, invert Y component
                     normal.y = -normal.y;
                 }
                 
-                // Convert to normal map format [0,1] range
                 return normal * 0.5 + 0.5;
             }
             
@@ -431,24 +479,21 @@ class FourierWaveGenerator {
                     
                     float componentHeight = fourierComponent(uv, 
                                                            u_amplitudes[i], u_spatialFreqs[i], u_temporalFreqs[i], 
-                                                           u_directions[i], u_phases[i], u_time, u_sharpnesses[i]);
+                                                           u_directions[i], u_phases[i], u_time, u_sharpnesses[i],
+                                                           u_noiseAmounts[i], u_noiseScales[i], u_noiseSeeds[i]);
                     totalHeight += componentHeight;
                     
-                    // Track theoretical min/max for normalization
                     if (u_normalizeHeights) {
-                        minHeight -= abs(u_amplitudes[i]); // Worst case negative
-                        maxHeight += abs(u_amplitudes[i]); // Worst case positive
+                        minHeight -= abs(u_amplitudes[i]);
+                        maxHeight += abs(u_amplitudes[i]);
                     }
                 }
                 
-                // Apply wave scale
                 totalHeight *= u_waveScale;
                 
-                // Optional height normalization to ensure full [0,1] range usage
                 if (u_normalizeHeights && abs(maxHeight - minHeight) > 0.001) {
                     minHeight *= u_waveScale;
                     maxHeight *= u_waveScale;
-                    // Normalize to [-1, 1] range first, then will be mapped to [0,1] in main()
                     totalHeight = 2.0 * (totalHeight - minHeight) / (maxHeight - minHeight) - 1.0;
                 }
                 
@@ -461,7 +506,7 @@ class FourierWaveGenerator {
                 
                 if (u_outputMode == 0) {
                     // Normal map mode
-                    vec3 normal = calculateNormal(tiledUV, 0.0); // Epsilon no longer used for analytical derivatives
+                    vec3 normal = calculateNormal(tiledUV, 0.0);
                     gl_FragColor = vec4(normal, 1.0);
                 } else {
                     // Height map mode
@@ -508,7 +553,11 @@ class FourierWaveGenerator {
             temporalFreqs: this.gl.getUniformLocation(this.program, 'u_temporalFreqs'),
             directions: this.gl.getUniformLocation(this.program, 'u_directions'),
             phases: this.gl.getUniformLocation(this.program, 'u_phases'),
-            sharpnesses: this.gl.getUniformLocation(this.program, 'u_sharpnesses')
+            sharpnesses: this.gl.getUniformLocation(this.program, 'u_sharpnesses'),
+            // Noise uniforms
+            noiseAmounts: this.gl.getUniformLocation(this.program, 'u_noiseAmounts'),
+            noiseScales: this.gl.getUniformLocation(this.program, 'u_noiseScales'),
+            noiseSeeds: this.gl.getUniformLocation(this.program, 'u_noiseSeeds')
         };
         
         // Get attribute locations
@@ -744,9 +793,13 @@ class FourierWaveGenerator {
             },
             phase: Math.random() * 2 * Math.PI,         // 0 to 2π
             sharpness: Math.random() * 0.5,             // 0 to 0.5 (moderate sharpness)
+            noiseAmount: Math.random() * 0.5,          // 0 to 0.5
+            noiseScale: Math.floor(Math.random() * 8) + 1, // 1 to 8 (integer)
+            noiseSeed: Math.random() * 100,            // 0 to 100
             locked: {
                 amplitude: false, spatialFreq: false, temporalFreq: false,
-                direction: false, phase: false, sharpness: false
+                direction: false, phase: false, sharpness: false,
+                noiseAmount: false, noiseScale: false, noiseSeed: false
             }
         };
     }
@@ -755,7 +808,6 @@ class FourierWaveGenerator {
         if (index >= 0 && index < this.waveLayers.length) {
             const layer = this.waveLayers[index];
             const newLayer = this.generateRandomWaveLayer();
-            
             // Only randomize unlocked parameters
             if (!layer.locked.amplitude) layer.amplitude = newLayer.amplitude;
             if (!layer.locked.spatialFreq) layer.spatialFreq = newLayer.spatialFreq;
@@ -766,7 +818,9 @@ class FourierWaveGenerator {
             }
             if (!layer.locked.phase) layer.phase = newLayer.phase;
             if (!layer.locked.sharpness) layer.sharpness = newLayer.sharpness;
-            
+            if (!layer.locked.noiseAmount) layer.noiseAmount = newLayer.noiseAmount;
+            if (!layer.locked.noiseScale) layer.noiseScale = Math.floor(newLayer.noiseScale); // ensure integer
+            if (!layer.locked.noiseSeed) layer.noiseSeed = newLayer.noiseSeed;
             this.updateWaveLayerControls();
             this.saveSettings();
         }
@@ -776,7 +830,6 @@ class FourierWaveGenerator {
         for (let i = 0; i < this.layerCount; i++) {
             const layer = this.waveLayers[i];
             const newLayer = this.generateRandomWaveLayer();
-            
             // Only randomize unlocked parameters
             if (!layer.locked.amplitude) layer.amplitude = newLayer.amplitude;
             if (!layer.locked.spatialFreq) layer.spatialFreq = newLayer.spatialFreq;
@@ -787,6 +840,9 @@ class FourierWaveGenerator {
             }
             if (!layer.locked.phase) layer.phase = newLayer.phase;
             if (!layer.locked.sharpness) layer.sharpness = newLayer.sharpness;
+            if (!layer.locked.noiseAmount) layer.noiseAmount = newLayer.noiseAmount;
+            if (!layer.locked.noiseScale) layer.noiseScale = Math.floor(newLayer.noiseScale); // ensure integer
+            if (!layer.locked.noiseSeed) layer.noiseSeed = newLayer.noiseSeed;
         }
         this.updateWaveLayerControls();
         this.saveSettings();
@@ -805,9 +861,13 @@ class FourierWaveGenerator {
                 direction: { x: 1.0, y: 0.0 },
                 phase: 0.0,
                 sharpness: 0.0,
+                noiseAmount: 0.0,
+                noiseScale: 1.0,
+                noiseSeed: 0.0,
                 locked: {
                     amplitude: false, spatialFreq: false, temporalFreq: false,
-                    direction: false, phase: false, sharpness: false
+                    direction: false, phase: false, sharpness: false,
+                    noiseAmount: false, noiseScale: false, noiseSeed: false
                 }
             });
         }
@@ -877,6 +937,30 @@ class FourierWaveGenerator {
                         <span class="value-display" id="sharpnessValue${i}">${layer.sharpness.toFixed(1)}</span>
                     </div>
                 </div>
+                <div class="control-row">
+                    <label>Noise Amount:</label>
+                    <div class="slider-container">
+                        <button class="lock-btn" id="lockNoiseAmount${i}" data-param="noiseAmount" data-layer="${i}" style="background: none; border: none; color: ${layer.locked.noiseAmount ? 'white' : '#888'}; padding: 2px; margin-right: 5px; font-size: 14px; cursor: pointer; width: 20px;"><i class="fas ${layer.locked.noiseAmount ? 'fa-lock' : 'fa-unlock'}"></i></button>
+                        <input type="range" min="0.0" max="2.0" step="0.01" value="${layer.noiseAmount}" id="noiseAmount${i}">
+                        <span class="value-display" id="noiseAmountValue${i}">${layer.noiseAmount.toFixed(2)}</span>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <label>Noise Scale:</label>
+                    <div class="slider-container">
+                        <button class="lock-btn" id="lockNoiseScale${i}" data-param="noiseScale" data-layer="${i}" style="background: none; border: none; color: ${layer.locked.noiseScale ? 'white' : '#888'}; padding: 2px; margin-right: 5px; font-size: 14px; cursor: pointer; width: 20px;"><i class="fas ${layer.locked.noiseScale ? 'fa-lock' : 'fa-unlock'}"></i></button>
+                        <input type="range" min="1" max="8" step="1" value="${Math.round(layer.noiseScale)}" id="noiseScale${i}">
+                        <span class="value-display" id="noiseScaleValue${i}">${Math.round(layer.noiseScale)}</span>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <label>Noise Seed:</label>
+                    <div class="slider-container">
+                        <button class="lock-btn" id="lockNoiseSeed${i}" data-param="noiseSeed" data-layer="${i}" style="background: none; border: none; color: ${layer.locked.noiseSeed ? 'white' : '#888'}; padding: 2px; margin-right: 5px; font-size: 14px; cursor: pointer; width: 20px;"><i class="fas ${layer.locked.noiseSeed ? 'fa-lock' : 'fa-unlock'}"></i></button>
+                        <input type="range" min="0.0" max="100.0" step="0.01" value="${layer.noiseSeed}" id="noiseSeed${i}">
+                        <span class="value-display" id="noiseSeedValue${i}">${layer.noiseSeed.toFixed(2)}</span>
+                    </div>
+                </div>
             `;
             container.appendChild(layerDiv);
             
@@ -888,6 +972,9 @@ class FourierWaveGenerator {
             const directionYInput = document.getElementById(`directionY${i}`);
             const phaseInput = document.getElementById(`phase${i}`);
             const sharpnessInput = document.getElementById(`sharpness${i}`);
+            const noiseAmountInput = document.getElementById(`noiseAmount${i}`);
+            const noiseScaleInput = document.getElementById(`noiseScale${i}`);
+            const noiseSeedInput = document.getElementById(`noiseSeed${i}`);
             
             // Set values explicitly
             amplitudeInput.value = layer.amplitude;
@@ -897,6 +984,9 @@ class FourierWaveGenerator {
             directionYInput.value = layer.direction.y;
             phaseInput.value = layer.phase;
             sharpnessInput.value = layer.sharpness;
+            noiseAmountInput.value = layer.noiseAmount;
+            noiseScaleInput.value = Math.round(layer.noiseScale);
+            noiseSeedInput.value = layer.noiseSeed;
             
             // Update display values
             document.getElementById(`amplitudeValue${i}`).textContent = layer.amplitude.toFixed(2);
@@ -906,6 +996,9 @@ class FourierWaveGenerator {
             document.getElementById(`directionYValue${i}`).textContent = layer.direction.y.toFixed(1);
             document.getElementById(`phaseValue${i}`).textContent = layer.phase.toFixed(1);
             document.getElementById(`sharpnessValue${i}`).textContent = layer.sharpness.toFixed(1);
+            document.getElementById(`noiseAmountValue${i}`).textContent = layer.noiseAmount.toFixed(2);
+            document.getElementById(`noiseScaleValue${i}`).textContent = Math.round(layer.noiseScale);
+            document.getElementById(`noiseSeedValue${i}`).textContent = layer.noiseSeed.toFixed(2);
             
             // Add event listeners
             amplitudeInput.addEventListener('input', (e) => {
@@ -949,6 +1042,24 @@ class FourierWaveGenerator {
                 document.getElementById(`sharpnessValue${i}`).textContent = layer.sharpness.toFixed(1);
                 this.saveSettings();
             });
+
+            noiseAmountInput.addEventListener('input', (e) => {
+                layer.noiseAmount = parseFloat(e.target.value);
+                document.getElementById(`noiseAmountValue${i}`).textContent = layer.noiseAmount.toFixed(2);
+                this.saveSettings();
+            });
+
+            noiseScaleInput.addEventListener('input', (e) => {
+                layer.noiseScale = parseInt(e.target.value);
+                document.getElementById(`noiseScaleValue${i}`).textContent = layer.noiseScale;
+                this.saveSettings();
+            });
+
+            noiseSeedInput.addEventListener('input', (e) => {
+                layer.noiseSeed = parseFloat(e.target.value);
+                document.getElementById(`noiseSeedValue${i}`).textContent = layer.noiseSeed.toFixed(2);
+                this.saveSettings();
+            });
             
             // Randomize button for this layer
             document.getElementById(`randomizeLayer${i}`).addEventListener('click', () => {
@@ -964,7 +1075,10 @@ class FourierWaveGenerator {
                 { id: `lockDirectionX${i}`, param: 'direction' },
                 { id: `lockDirectionY${i}`, param: 'direction' },
                 { id: `lockPhase${i}`, param: 'phase' },
-                { id: `lockSharpness${i}`, param: 'sharpness' }
+                { id: `lockSharpness${i}`, param: 'sharpness' },
+                { id: `lockNoiseAmount${i}`, param: 'noiseAmount' },
+                { id: `lockNoiseScale${i}`, param: 'noiseScale' },
+                { id: `lockNoiseSeed${i}`, param: 'noiseSeed' }
             ];
             
             lockButtons.forEach(({ id, param }) => {
@@ -1007,7 +1121,10 @@ class FourierWaveGenerator {
         const directions = new Float32Array(16); // 8 vec2s
         const phases = new Float32Array(8);
         const sharpnesses = new Float32Array(8);
-        
+        // Noise params
+        const noiseAmounts = new Float32Array(8);
+        const noiseScales = new Float32Array(8);
+        const noiseSeeds = new Float32Array(8);
         for (let i = 0; i < Math.min(8, this.layerCount); i++) {
             const layer = this.waveLayers[i];
             amplitudes[i] = layer.amplitude;
@@ -1017,14 +1134,20 @@ class FourierWaveGenerator {
             directions[i * 2 + 1] = layer.direction.y;
             phases[i] = layer.phase;
             sharpnesses[i] = layer.sharpness;
+            noiseAmounts[i] = layer.noiseAmount;
+            noiseScales[i] = layer.noiseScale;
+            noiseSeeds[i] = layer.noiseSeed;
         }
-        
         this.gl.uniform1fv(this.uniforms.amplitudes, amplitudes);
         this.gl.uniform1fv(this.uniforms.spatialFreqs, spatialFreqs);
         this.gl.uniform1fv(this.uniforms.temporalFreqs, temporalFreqs);
         this.gl.uniform2fv(this.uniforms.directions, directions);
         this.gl.uniform1fv(this.uniforms.phases, phases);
         this.gl.uniform1fv(this.uniforms.sharpnesses, sharpnesses);
+        // Pass noise params
+        this.gl.uniform1fv(this.uniforms.noiseAmounts, noiseAmounts);
+        this.gl.uniform1fv(this.uniforms.noiseScales, noiseScales);
+        this.gl.uniform1fv(this.uniforms.noiseSeeds, noiseSeeds);
     }
     
     render() {
@@ -1159,84 +1282,121 @@ class FourierWaveGenerator {
             uniform vec2 u_directions[8];
             uniform float u_phases[8];
             uniform float u_sharpnesses[8];
+            // Noise parameters
+            uniform float u_noiseAmounts[8];
+            uniform float u_noiseScales[8];
+            uniform float u_noiseSeeds[8];
             
             // WebGL-compatible round function
             float roundCompat(float x) {
                 return floor(x + 0.5);
             }
             
+            // Hash function for gradients
+            vec2 hash2(vec2 p) {
+                float x = fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+                float y = fract(sin(dot(p, vec2(269.5, 183.3))) * 12345.6789);
+                return vec2(x, y) * 2.0 - 1.0;
+            }
+            // Tileable Perlin noise with period 'period'
+            float tileablePerlinNoise(vec2 uv, float period, float seed) {
+                // Periodic lattice
+                vec2 p = uv * period;
+                vec2 pi = floor(p);
+                vec2 pf = fract(p);
+                // Wrap lattice points
+                float w = period;
+                vec2 i00 = mod(pi, w);
+                vec2 i10 = mod(pi + vec2(1.0, 0.0), w);
+                vec2 i01 = mod(pi + vec2(0.0, 1.0), w);
+                vec2 i11 = mod(pi + vec2(1.0, 1.0), w);
+                // Gradients
+                vec2 g00 = hash2(i00 + seed);
+                vec2 g10 = hash2(i10 + seed);
+                vec2 g01 = hash2(i01 + seed);
+                vec2 g11 = hash2(i11 + seed);
+                // Distance vectors
+                vec2 d00 = pf - vec2(0.0, 0.0);
+                vec2 d10 = pf - vec2(1.0, 0.0);
+                vec2 d01 = pf - vec2(0.0, 1.0);
+                vec2 d11 = pf - vec2(1.0, 1.0);
+                // Dot products
+                float v00 = dot(g00, d00);
+                float v10 = dot(g10, d10);
+                float v01 = dot(g01, d01);
+                float v11 = dot(g11, d11);
+                // Interpolation
+                vec2 f = pf * pf * (3.0 - 2.0 * pf);
+                float vx0 = mix(v00, v10, f.x);
+                float vx1 = mix(v01, v11, f.x);
+                float v = mix(vx0, vx1, f.y);
+                return v * 1.5; // [-1,1] (scaled)
+            }
+            // Tileable 3D Perlin noise for seamless animation
+            float tileablePerlinNoise3D(vec2 uv, float t, float period, float seed) {
+                float z = t * period;
+                float w = period;
+                float z0 = floor(z);
+                float z1 = z0 + 1.0;
+                float fz = fract(z);
+                float n0 = tileablePerlinNoise(uv, period, seed + z0);
+                float n1 = tileablePerlinNoise(uv, period, seed + z1);
+                return mix(n0, n1, fz);
+            }
+            
             // Wave sharpening function using the complete mathematical formula
-            // Creates oscilloscope-like waveforms with sharp valleys and flat, shaped peaks
             float sharpenWave(float wave, float sharpness) {
                 if (sharpness <= 0.001) {
                     return wave;
                 }
-                
-                // Convert sharpness [0,1] to power parameter p
-                // Higher sharpness = lower p = more dramatic shaping
-                float p = 1.0 / (1.0 + sharpness * 4.0); // Range: p from 1.0 to 0.2
-                
-                // Step 1: Flip the wave to target valleys instead of peaks
+                float p = 1.0 / (1.0 + sharpness * 4.0);
                 float y0 = -wave;
-                
-                // Step 2: Shift to negative space
-                float y1 = y0 - 1.0; // Range: [-2, 0]
-                
-                // Step 3: Apply power function in negative space
-                // y2 = -((-y1)^(1/p))
+                float y1 = y0 - 1.0;
                 float y2 = -pow(-y1, 1.0 / p);
-                
-                // Step 4: Shift back to center around zero
                 float y3 = y2 + 1.0;
-                
-                // Step 5: Normalize back to [-1, 1] range
-                // For this specific function, we can calculate the range analytically
-                // When y1 = -2 (wave = -1): y2 = -pow(2, 1/p), y3 = 1 - pow(2, 1/p)
-                // When y1 = 0 (wave = 1): y2 = 0, y3 = 1
                 float minY3 = 1.0 - pow(2.0, 1.0 / p);
                 float maxY3 = 1.0;
                 float y4 = 2.0 * (y3 - minY3) / (maxY3 - minY3) - 1.0;
-                
-                // Step 6: Flip back to restore original orientation (now valleys are sharp)
                 float y5 = -y4;
-                
-                // Blend between original wave and sharpened wave based on sharpness parameter
                 return mix(wave, y5, sharpness);
             }
             
+            // Tileable 4D Perlin noise for seamless animation loop (space: uv, time: circle)
+            float tileablePerlinNoise4D(vec2 uv, float t, float period, float seed) {
+                // Map time t in [0,1] to a circle
+                float angle = t * 6.2831853; // 2π
+                float tx = cos(angle);
+                float ty = sin(angle);
+                // Use (uv.x, uv.y, tx, ty) as 4D input
+                // We'll fake 4D by combining two 2D noises
+                float n1 = tileablePerlinNoise(uv + tx, period, seed);
+                float n2 = tileablePerlinNoise(uv + ty, period, seed + 17.0);
+                return (n1 + n2) * 0.5;
+            }
+            
+            // Fourier wave component function with seamless tiling, wave sharpening, and noise distortion
             float fourierComponent(vec2 uv, float amplitude, float spatialFreq, float temporalFreq, 
-                                 vec2 direction, float phaseOffset, float time, float sharpness) {
+                                 vec2 direction, float phaseOffset, float time, float sharpness,
+                                 float noiseAmount, float noiseScale, float noiseSeed) {
                 // Normalize direction
                 vec2 dir = normalize(direction);
-                
-                // For seamless tiling, work directly with UV coordinates [0,1]
-                // and ensure wave vectors create integer cycles across the tile
-                
-                // Quantize the wave vector components to ensure seamless tiling
-                // Each component should complete integer cycles across [0,1]
                 float kx = roundCompat(spatialFreq * dir.x) * 2.0 * 3.14159;
                 float ky = roundCompat(spatialFreq * dir.y) * 2.0 * 3.14159;
                 vec2 k = vec2(kx, ky);
-                
-                // Use UV coordinates directly for spatial phase
                 float spatialPhase = dot(k, uv);
-                
-                // Temporal phase: ω * t (ω is integer for perfect looping)
                 float temporalPhase = temporalFreq * 2.0 * 3.14159 * time;
-                
-                // Total phase
-                float phase = spatialPhase + temporalPhase + phaseOffset;
-                
-                // Generate base sine wave
+                float noise = 0.0;
+                if (noiseAmount > 0.001) {
+                    // Remove time dependence: use only spatial noise
+                    noise = tileablePerlinNoise(uv, noiseScale, noiseSeed) * noiseAmount;
+                }
+                float phase = spatialPhase + temporalPhase + phaseOffset + noise;
                 float wave = sin(phase);
-                
-                // Apply wave sharpening for more realistic wave shapes
                 float sharpenedWave = sharpenWave(wave, sharpness);
-                
-                // Return amplified component
                 return amplitude * sharpenedWave;
             }
             
+            // Calculate normal using analytical derivatives for smooth gradients
             vec3 calculateNormal(vec2 uv, float epsilon) {
                 float dhdx = 0.0;
                 float dhdy = 0.0;
@@ -1251,27 +1411,29 @@ class FourierWaveGenerator {
                     vec2 direction = normalize(u_directions[i]);
                     float phaseOffset = u_phases[i];
                     float sharpness = u_sharpnesses[i];
+                    float noiseAmount = u_noiseAmounts[i];
+                    float noiseScale = u_noiseScales[i];
+                    float noiseSeed = u_noiseSeeds[i];
                     
-                    // Quantized wave vector for seamless tiling
                     float kx = roundCompat(spatialFreq * direction.x) * 2.0 * 3.14159;
                     float ky = roundCompat(spatialFreq * direction.y) * 2.0 * 3.14159;
                     
-                    // Phase calculation
                     float spatialPhase = kx * uv.x + ky * uv.y;
                     float temporalPhase = temporalFreq * 2.0 * 3.14159 * u_time;
-                    float totalPhase = spatialPhase + temporalPhase + phaseOffset;
+                    float noise = 0.0;
+                    if (noiseAmount > 0.001) {
+                        // Remove time dependence: use only spatial noise
+                        noise = tileablePerlinNoise(uv, noiseScale, noiseSeed) * noiseAmount;
+                    }
+                    float totalPhase = spatialPhase + temporalPhase + phaseOffset + noise;
                     
-                    // Base wave and its derivative
                     float wave = sin(totalPhase);
                     float waveDerivative = cos(totalPhase);
                     
-                    // Apply sharpening to both wave and derivative
                     float sharpenedWave = sharpenWave(wave, sharpness);
                     
-                    // For the derivative, we need to account for the sharpening transformation
                     float sharpenedDerivative = waveDerivative;
                     if (sharpness > 0.001) {
-                        // Approximate the derivative of the sharpened wave
                         float p = 1.0 / (1.0 + sharpness * 4.0);
                         float y0 = -wave;
                         float y1 = y0 - 1.0;
@@ -1281,28 +1443,23 @@ class FourierWaveGenerator {
                         }
                     }
                     
-                    // Accumulate gradients
                     dhdx += amplitude * sharpenedDerivative * kx;
                     dhdy += amplitude * sharpenedDerivative * ky;
                 }
                 
-                // Apply wave scale
                 dhdx *= u_waveScale;
                 dhdy *= u_waveScale;
                 
-                // Normal vector
                 vec3 normal = normalize(vec3(-dhdx * u_normalIntensity, -dhdy * u_normalIntensity, 1.0));
                 
-                // Apply DirectX vs OpenGL normal map format
                 if (u_isDirectXNormal) {
-                    // DirectX: Y points up, invert Y component
                     normal.y = -normal.y;
                 }
                 
-                // Convert to normal map format [0,1] range
                 return normal * 0.5 + 0.5;
             }
             
+            // Calculate height directly for height map mode
             float calculateHeight(vec2 uv) {
                 float totalHeight = 0.0;
                 float minHeight = 0.0;
@@ -1313,24 +1470,21 @@ class FourierWaveGenerator {
                     
                     float componentHeight = fourierComponent(uv, 
                                                            u_amplitudes[i], u_spatialFreqs[i], u_temporalFreqs[i], 
-                                                           u_directions[i], u_phases[i], u_time, u_sharpnesses[i]);
+                                                           u_directions[i], u_phases[i], u_time, u_sharpnesses[i],
+                                                           u_noiseAmounts[i], u_noiseScales[i], u_noiseSeeds[i]);
                     totalHeight += componentHeight;
                     
-                    // Track theoretical min/max for normalization
                     if (u_normalizeHeights) {
-                        minHeight -= abs(u_amplitudes[i]); // Worst case negative
-                        maxHeight += abs(u_amplitudes[i]); // Worst case positive
+                        minHeight -= abs(u_amplitudes[i]);
+                        maxHeight += abs(u_amplitudes[i]);
                     }
                 }
                 
-                // Apply wave scale
                 totalHeight *= u_waveScale;
                 
-                // Optional height normalization to ensure full [0,1] range usage
                 if (u_normalizeHeights && abs(maxHeight - minHeight) > 0.001) {
                     minHeight *= u_waveScale;
                     maxHeight *= u_waveScale;
-                    // Normalize to [-1, 1] range first, then will be mapped to [0,1] in main()
                     totalHeight = 2.0 * (totalHeight - minHeight) / (maxHeight - minHeight) - 1.0;
                 }
                 
@@ -1338,12 +1492,12 @@ class FourierWaveGenerator {
             }
             
             void main() {
-                // Apply tiling preview to UV coordinates (for export, this should always be 1)
+                // Apply tiling preview to UV coordinates
                 vec2 tiledUV = fract(v_uv * u_tilingPreview);
                 
                 if (u_outputMode == 0) {
                     // Normal map mode
-                    vec3 normal = calculateNormal(tiledUV, 0.0); // Epsilon no longer used for analytical derivatives
+                    vec3 normal = calculateNormal(tiledUV, 0.0);
                     gl_FragColor = vec4(normal, 1.0);
                 } else {
                     // Height map mode
@@ -1387,7 +1541,11 @@ class FourierWaveGenerator {
             temporalFreqs: gl.getUniformLocation(this.exportProgram, 'u_temporalFreqs'),
             directions: gl.getUniformLocation(this.exportProgram, 'u_directions'),
             phases: gl.getUniformLocation(this.exportProgram, 'u_phases'),
-            sharpnesses: gl.getUniformLocation(this.exportProgram, 'u_sharpnesses')
+            sharpnesses: gl.getUniformLocation(this.exportProgram, 'u_sharpnesses'),
+            // Noise uniforms
+            noiseAmounts: gl.getUniformLocation(this.exportProgram, 'u_noiseAmounts'),
+            noiseScales: gl.getUniformLocation(this.exportProgram, 'u_noiseScales'),
+            noiseSeeds: gl.getUniformLocation(this.exportProgram, 'u_noiseSeeds')
         };
         
         // Setup geometry
@@ -1436,7 +1594,10 @@ class FourierWaveGenerator {
         const directions = new Float32Array(16);
         const phases = new Float32Array(8);
         const sharpnesses = new Float32Array(8);
-        
+        // Noise params
+        const noiseAmounts = new Float32Array(8);
+        const noiseScales = new Float32Array(8);
+        const noiseSeeds = new Float32Array(8);
         for (let i = 0; i < Math.min(8, this.layerCount); i++) {
             const layer = this.waveLayers[i];
             amplitudes[i] = layer.amplitude;
@@ -1446,14 +1607,20 @@ class FourierWaveGenerator {
             directions[i * 2 + 1] = layer.direction.y;
             phases[i] = layer.phase;
             sharpnesses[i] = layer.sharpness;
+            noiseAmounts[i] = layer.noiseAmount;
+            noiseScales[i] = layer.noiseScale;
+            noiseSeeds[i] = layer.noiseSeed;
         }
-        
         gl.uniform1fv(this.exportUniforms.amplitudes, amplitudes);
         gl.uniform1fv(this.exportUniforms.spatialFreqs, spatialFreqs);
         gl.uniform1fv(this.exportUniforms.temporalFreqs, temporalFreqs);
         gl.uniform2fv(this.exportUniforms.directions, directions);
         gl.uniform1fv(this.exportUniforms.phases, phases);
         gl.uniform1fv(this.exportUniforms.sharpnesses, sharpnesses);
+        // Pass noise params
+        gl.uniform1fv(this.exportUniforms.noiseAmounts, noiseAmounts);
+        gl.uniform1fv(this.exportUniforms.noiseScales, noiseScales);
+        gl.uniform1fv(this.exportUniforms.noiseSeeds, noiseSeeds);
     }
     
     async downloadAsZip(images) {
