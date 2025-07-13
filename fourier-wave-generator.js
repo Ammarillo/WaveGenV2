@@ -30,6 +30,33 @@ class FourierWaveGenerator {
         this.fps = 60;
         this.frameCount = 0;
         
+        // URL settings keymap for compact encoding
+        this.urlKeymap = {
+            // Global settings
+            'ld': 'loopDuration',
+            'sp': 'speed', 
+            'lc': 'layerCount',
+            'om': 'outputMode',
+            'ws': 'waveScale',
+            'ni': 'normalIntensity',
+            'hr': 'heightRange',
+            'nh': 'normalizeHeights',
+            'nmf': 'normalMapFormat',
+            'tp': 'tilingPreview',
+            // Wave layer parameters (indexed)
+            'a': 'amplitude',
+            'sf': 'spatialFreq',
+            'tf': 'temporalFreq',
+            'dx': 'directionX',
+            'dy': 'directionY',
+            'p': 'phase',
+            'sh': 'sharpness',
+            'na': 'noiseAmount',
+            'ns': 'noiseScale',
+            'nseed': 'noiseSeed',
+            'l': 'locked'
+        };
+        
         // Load saved settings before initializing
         this.loadSettings();
         
@@ -45,7 +72,158 @@ class FourierWaveGenerator {
         this.startAnimation();
     }
     
-    // Save all current settings to localStorage
+    // Encode settings to URL parameters
+    encodeSettingsToURL() {
+        const params = new URLSearchParams();
+        
+        // Helper function to round to 2 decimal places
+        const round2 = (value) => Math.round(value * 100) / 100;
+        
+        // Global settings
+        params.set('ld', round2(this.loopDuration).toString());
+        params.set('sp', round2(this.speed).toString());
+        params.set('lc', this.layerCount.toString());
+        params.set('om', this.outputMode);
+        params.set('ws', round2(this.waveScale).toString());
+        params.set('ni', round2(this.normalIntensity).toString());
+        params.set('hr', round2(this.heightRange).toString());
+        params.set('nh', this.normalizeHeights ? '1' : '0');
+        params.set('nmf', this.normalMapFormat);
+        params.set('tp', this.tilingPreview.toString());
+        
+        // Wave layers
+        for (let i = 0; i < this.layerCount; i++) {
+            const layer = this.waveLayers[i];
+            const prefix = `l${i}_`;
+            
+            params.set(prefix + 'a', round2(layer.amplitude).toString());
+            params.set(prefix + 'sf', round2(layer.spatialFreq).toString());
+            params.set(prefix + 'tf', layer.temporalFreq.toString());
+            params.set(prefix + 'dx', round2(layer.direction.x).toString());
+            params.set(prefix + 'dy', round2(layer.direction.y).toString());
+            params.set(prefix + 'p', round2(layer.phase).toString());
+            params.set(prefix + 'sh', round2(layer.sharpness).toString());
+            params.set(prefix + 'na', round2(layer.noiseAmount).toString());
+            params.set(prefix + 'ns', layer.noiseScale.toString());
+            params.set(prefix + 'nseed', round2(layer.noiseSeed).toString());
+            
+            // Encode locked states as a single string
+            const lockedStates = [
+                layer.locked.amplitude ? '1' : '0',
+                layer.locked.spatialFreq ? '1' : '0',
+                layer.locked.temporalFreq ? '1' : '0',
+                layer.locked.direction ? '1' : '0',
+                layer.locked.phase ? '1' : '0',
+                layer.locked.sharpness ? '1' : '0',
+                layer.locked.noiseAmount ? '1' : '0',
+                layer.locked.noiseScale ? '1' : '0',
+                layer.locked.noiseSeed ? '1' : '0'
+            ].join('');
+            params.set(prefix + 'l', lockedStates);
+        }
+        
+        return params.toString();
+    }
+    
+    // Decode settings from URL parameters
+    decodeSettingsFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        
+        if (params.toString() === '') return false; // No URL parameters
+        
+        try {
+            // Global settings
+            if (params.has('ld')) this.loopDuration = parseFloat(params.get('ld'));
+            if (params.has('sp')) this.speed = parseFloat(params.get('sp'));
+            if (params.has('lc')) this.layerCount = parseInt(params.get('lc'));
+            if (params.has('om')) this.outputMode = params.get('om');
+            if (params.has('ws')) this.waveScale = parseFloat(params.get('ws'));
+            if (params.has('ni')) this.normalIntensity = parseFloat(params.get('ni'));
+            if (params.has('hr')) this.heightRange = parseFloat(params.get('hr'));
+            if (params.has('nh')) this.normalizeHeights = params.get('nh') === '1';
+            if (params.has('nmf')) this.normalMapFormat = params.get('nmf');
+            if (params.has('tp')) this.tilingPreview = parseInt(params.get('tp'));
+            
+            // Wave layers
+            this.waveLayers = [];
+            for (let i = 0; i < this.layerCount; i++) {
+                const prefix = `l${i}_`;
+                
+                if (params.has(prefix + 'a')) {
+                    const layer = {
+                        amplitude: parseFloat(params.get(prefix + 'a')),
+                        spatialFreq: parseFloat(params.get(prefix + 'sf')),
+                        temporalFreq: parseInt(params.get(prefix + 'tf')),
+                        direction: {
+                            x: parseFloat(params.get(prefix + 'dx')),
+                            y: parseFloat(params.get(prefix + 'dy'))
+                        },
+                        phase: parseFloat(params.get(prefix + 'p')),
+                        sharpness: parseFloat(params.get(prefix + 'sh')),
+                        noiseAmount: parseFloat(params.get(prefix + 'na')),
+                        noiseScale: parseFloat(params.get(prefix + 'ns')),
+                        noiseSeed: parseFloat(params.get(prefix + 'nseed')),
+                        locked: {
+                            amplitude: false, spatialFreq: false, temporalFreq: false,
+                            direction: false, phase: false, sharpness: false,
+                            noiseAmount: false, noiseScale: false, noiseSeed: false
+                        }
+                    };
+                    
+                    // Decode locked states
+                    if (params.has(prefix + 'l')) {
+                        const lockedStr = params.get(prefix + 'l');
+                        if (lockedStr.length >= 9) {
+                            layer.locked.amplitude = lockedStr[0] === '1';
+                            layer.locked.spatialFreq = lockedStr[1] === '1';
+                            layer.locked.temporalFreq = lockedStr[2] === '1';
+                            layer.locked.direction = lockedStr[3] === '1';
+                            layer.locked.phase = lockedStr[4] === '1';
+                            layer.locked.sharpness = lockedStr[5] === '1';
+                            layer.locked.noiseAmount = lockedStr[6] === '1';
+                            layer.locked.noiseScale = lockedStr[7] === '1';
+                            layer.locked.noiseSeed = lockedStr[8] === '1';
+                        }
+                    }
+                    
+                    this.waveLayers.push(layer);
+                }
+            }
+            
+            return true; // Successfully loaded from URL
+        } catch (error) {
+            console.warn('Failed to decode settings from URL:', error);
+            return false;
+        }
+    }
+    
+    // Update URL with current settings
+    updateURL() {
+        const params = this.encodeSettingsToURL();
+        const newURL = window.location.pathname + '?' + params;
+        window.history.replaceState({}, '', newURL);
+    }
+    
+    // Copy current URL to clipboard
+    copyURLToClipboard() {
+        const params = this.encodeSettingsToURL();
+        const fullURL = window.location.origin + window.location.pathname + '?' + params;
+        
+        navigator.clipboard.writeText(fullURL).then(() => {
+            showNotification('URL copied to clipboard!');
+        }).catch(() => {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = fullURL;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showNotification('URL copied to clipboard!');
+        });
+    }
+    
+    // Save all current settings to localStorage and update URL
     saveSettings() {
         const settings = {
             version: '1.1',
@@ -71,51 +249,60 @@ class FourierWaveGenerator {
         } catch (error) {
             console.warn('Failed to save settings to localStorage:', error);
         }
+        
+        // Update URL with current settings
+        this.updateURL();
     }
     
-    // Load settings from localStorage
+    // Load settings from localStorage or URL
     loadSettings() {
-        try {
-            const saved = localStorage.getItem('fourierWaveGeneratorSettings');
-            
-            if (saved) {
-                const settings = JSON.parse(saved);
+        // First try to load from URL parameters
+        const loadedFromURL = this.decodeSettingsFromURL();
+        
+        if (!loadedFromURL) {
+            // Fall back to localStorage
+            try {
+                const saved = localStorage.getItem('fourierWaveGeneratorSettings');
                 
-                // Apply settings with validation
-                this.loopDuration = settings.loopDuration || 10.0;
-                this.speed = settings.speed || 1.0;
-                this.layerCount = settings.layerCount || 4;
-                this.outputMode = settings.outputMode || 'normal';
-                this.waveScale = settings.waveScale || 0.2;
-                this.normalIntensity = settings.normalIntensity || 0.6;
-                this.heightRange = settings.heightRange || 1.0;
-                this.normalizeHeights = settings.normalizeHeights || false;
-                this.normalMapFormat = settings.normalMapFormat || 'opengl';
-                this.tilingPreview = settings.tilingPreview || 1;
-                
-                // Load wave layers with backward compatibility
-                if (settings.waveLayers && Array.isArray(settings.waveLayers)) {
-                    this.waveLayers = [...settings.waveLayers];
+                if (saved) {
+                    const settings = JSON.parse(saved);
                     
-                    // Ensure all layers have sharpness property (backward compatibility)
-                    for (let layer of this.waveLayers) {
-                        if (layer.sharpness === undefined) {
-                            layer.sharpness = 0.0;
-                        }
-                        // Ensure all layers have locked states (backward compatibility)
-                        if (!layer.locked) {
-                            layer.locked = {
-                                amplitude: false, spatialFreq: false, temporalFreq: false,
-                                direction: false, phase: false, sharpness: false,
-                                noiseAmount: false, noiseScale: false, noiseSeed: false
-                            };
+                    // Apply settings with validation
+                    this.loopDuration = settings.loopDuration || 10.0;
+                    this.speed = settings.speed || 1.0;
+                    this.layerCount = settings.layerCount || 4;
+                    this.outputMode = settings.outputMode || 'normal';
+                    this.waveScale = settings.waveScale || 0.2;
+                    this.normalIntensity = settings.normalIntensity || 0.6;
+                    this.heightRange = settings.heightRange || 1.0;
+                    this.normalizeHeights = settings.normalizeHeights || false;
+                    this.normalMapFormat = settings.normalMapFormat || 'opengl';
+                    this.tilingPreview = settings.tilingPreview || 1;
+                    
+                    // Load wave layers with backward compatibility
+                    if (settings.waveLayers && Array.isArray(settings.waveLayers)) {
+                        this.waveLayers = [...settings.waveLayers];
+                        
+                        // Ensure all layers have sharpness property (backward compatibility)
+                        for (let layer of this.waveLayers) {
+                            if (layer.sharpness === undefined) {
+                                layer.sharpness = 0.0;
+                            }
+                            // Ensure all layers have locked states (backward compatibility)
+                            if (!layer.locked) {
+                                layer.locked = {
+                                    amplitude: false, spatialFreq: false, temporalFreq: false,
+                                    direction: false, phase: false, sharpness: false,
+                                    noiseAmount: false, noiseScale: false, noiseSeed: false
+                                };
+                            }
                         }
                     }
                 }
+            } catch (error) {
+                console.warn('Failed to load settings from localStorage:', error);
+                // Fall back to default settings
             }
-        } catch (error) {
-            console.warn('Failed to load settings from localStorage:', error);
-            // Fall back to default settings
         }
     }
     
@@ -167,7 +354,7 @@ class FourierWaveGenerator {
         if (normalMapFormatSelect) normalMapFormatSelect.value = this.normalMapFormat;
         if (tilingPreviewInput) {
             tilingPreviewInput.value = this.tilingPreview;
-            if (tilingPreviewValue) tilingPreviewValue.textContent = this.tilingPreview;
+            if (tilingPreviewValue) tilingPreviewValue.textContent = this.tilingPreview.toString();
         }
         
         // Restore export settings if they exist
